@@ -1,0 +1,436 @@
+digraph {
+	graph [newrank=false,
+		rankdir=TB,
+		splines=ortho
+	];
+	subgraph "clusterv_em (201)" {
+		graph [label="v_em (201)",
+			labeljust=r,
+			labelloc=b,
+			style=rounded
+		];
+		emission_spectrum	[label="emission_spectrum
+~
+ConstantData",
+			shape=box,
+			style="rounded, filled"];
+		emission_spectrum	[label="emission_spectrum
+~
+ConstantData",
+			shape=box,
+			style="rounded, filled"];
+		emission_velocity	[label="emission_velocity
+~
+ConstantData",
+			shape=box,
+			style="rounded, filled"];
+		emission_velocity	[label="emission_velocity
+~
+ConstantData",
+			shape=box,
+			style="rounded, filled"];
+		emission	[label="emission
+~
+Normal",
+			shape=ellipse,
+			style=filled];
+		emission_noise	[label="emission_noise
+~
+ConstantData",
+			shape=box,
+			style="rounded, filled"];
+	}
+	subgraph "clusterv_abs (201)" {
+		graph [label="v_abs (201)",
+			labeljust=r,
+			labelloc=b,
+			style=rounded
+		];
+		absorption	[label="absorption
+~
+Normal",
+			shape=ellipse,
+			style=filled];
+		absorption_noise	[label="absorption_noise
+~
+ConstantData",
+			shape=box,
+			style="rounded, filled"];
+		absorption_spectrum	[label="absorption_spectrum
+~
+ConstantData",
+			shape=box,
+			style="rounded, filled"];
+		absorption_velocity	[label="absorption_velocity
+~
+ConstantData",
+			shape=box,
+			style="rounded, filled"];
+		absorption_spectrum	[label="absorption_spectrum
+~
+ConstantData",
+			shape=box,
+			style="rounded, filled"];
+		absorption_velocity	[label="absorption_velocity
+~
+ConstantData",
+			shape=box,
+			style="rounded, filled"];
+	}
+	subgraph "clustercloud (4)" {
+		graph [label="cloud (4)",
+			labeljust=r,
+			labelloc=b,
+			style=rounded
+		];
+		log10_n_alpha_offset	[label="log10_n_alpha_offset
+~
+Normal",
+			shape=ellipse];
+		log10_cr_ion_rate_offset	[label="log10_cr_ion_rate_offset
+~
+Normal",
+			shape=ellipse];
+		log10_thermal_ratio	[label="log10_thermal_ratio
+~
+Deterministic",
+			shape=box];
+		log10_xCII_offset	[label="log10_xCII_offset
+~
+Normal",
+			shape=ellipse];
+		log10_xO	[label="log10_xO
+~
+Deterministic",
+			shape=box];
+		log10_thermal_ratio_offset	[label="log10_thermal_ratio_offset
+~
+Normal",
+			shape=ellipse,
+			style=filled];
+		log10_kinetic_temp_offset	[label="log10_kinetic_temp_offset
+~
+Normal",
+			shape=ellipse];
+		log10_depth	[label="log10_depth
+~
+Deterministic",
+			shape=box];
+		log10_spin_temp	[label="log10_spin_temp
+~
+Deterministic",
+			shape=box];
+		log10_nonthermal_fwhm	[label="log10_nonthermal_fwhm
+~
+Deterministic",
+			shape=box];
+		larson_power	[label="larson_power
+~
+Deterministic",
+			shape=box];
+		log10_equal_thermal_ratio	[label="log10_equal_thermal_ratio
+~
+ConstantData",
+			shape=box,
+			style="rounded, filled"];
+		log10_NHI	[label="log10_NHI
+~
+Deterministic",
+			shape=box];
+		log10_peak_tau	[label="log10_peak_tau
+~
+Deterministic",
+			shape=box];
+		log10_xO_offset	[label="log10_xO_offset
+~
+Normal",
+			shape=ellipse];
+		log10_thermal_fwhm	[label="log10_thermal_fwhm
+~
+Deterministic",
+			shape=box];
+		larson_power_offset	[label="larson_power_offset
+~
+Normal",
+			shape=ellipse];
+		log10_density_offset	[label="log10_density_offset
+~
+Normal",
+			shape=ellipse];
+		log10_fwhm	[label="log10_fwhm
+~
+Deterministic",
+			shape=box];
+		log10_heating	[label="log10_heating
+~
+Deterministic",
+			shape=box];
+		log10_kinetic_temp	[label="log10_kinetic_temp
+~
+Deterministic",
+			shape=box];
+		log10_G0_offset	[label="log10_G0_offset
+~
+Normal",
+			shape=ellipse];
+		velocity	[label="velocity
+~
+Deterministic",
+			shape=box];
+		log10_n_alpha	[label="log10_n_alpha
+~
+Deterministic",
+			shape=box];
+		log10_G0	[label="log10_G0
+~
+Deterministic",
+			shape=box];
+		log10_larson_linewidth_offset	[label="log10_larson_linewidth_offset
+~
+Normal",
+			shape=ellipse];
+		log10_xCII	[label="log10_xCII
+~
+Deterministic",
+			shape=box];
+		log10_inv_pah_recomb	[label="log10_inv_pah_recomb
+~
+Deterministic",
+			shape=box];
+		velocity_offset	[label="velocity_offset
+~
+Normal",
+			shape=ellipse];
+		log10_cr_ion_rate	[label="log10_cr_ion_rate
+~
+Deterministic",
+			shape=box];
+		log10_density	[label="log10_density
+~
+Deterministic",
+			shape=box];
+		log10_NHI_offset	[label="log10_NHI_offset
+~
+Normal",
+			shape=ellipse];
+		log10_cooling	[label="log10_cooling
+~
+Deterministic",
+			shape=box];
+		log10_inv_pah_recomb_offset	[label="log10_inv_pah_recomb_offset
+~
+Normal",
+			shape=ellipse];
+		log10_larson_linewidth	[label="log10_larson_linewidth
+~
+Deterministic",
+			shape=box];
+	}
+	subgraph "clustercoeff (3)" {
+		graph [label="coeff (3)",
+			labeljust=r,
+			labelloc=b,
+			style=rounded
+		];
+		emission_coeffs	[label="emission_coeffs
+~
+Normal",
+			shape=ellipse];
+		absorption_coeffs	[label="absorption_coeffs
+~
+Normal",
+			shape=ellipse];
+	}
+	emission_velocity -> emission	[minlen=1];
+	emission_velocity -> emission	[minlen=2];
+	emission -> emission_spectrum	[minlen=1];
+	emission_noise -> emission	[minlen=3];
+	absorption -> absorption_spectrum	[minlen=1];
+	absorption_noise -> absorption	[minlen=1];
+	absorption_velocity -> absorption	[minlen=2];
+	absorption_velocity -> absorption	[minlen=3];
+	log10_n_alpha_offset -> log10_n_alpha	[minlen=1];
+	log10_cr_ion_rate_offset -> log10_cr_ion_rate	[minlen=1];
+	log10_thermal_ratio -> log10_thermal_ratio_offset;
+	log10_xCII_offset -> log10_xCII	[minlen=1];
+	log10_xO -> log10_cooling;
+	log10_thermal_ratio_offset -> log10_equal_thermal_ratio	[minlen=1];
+	log10_kinetic_temp_offset -> log10_kinetic_temp	[minlen=1];
+	log10_depth -> log10_nonthermal_fwhm;
+	log10_spin_temp -> emission;
+	log10_spin_temp -> log10_peak_tau;
+	log10_nonthermal_fwhm -> log10_fwhm;
+	larson_power -> log10_nonthermal_fwhm;
+	log10_NHI -> log10_depth;
+	log10_NHI -> log10_peak_tau;
+	log10_NHI -> log10_heating;
+	log10_NHI -> log10_cooling;
+	log10_peak_tau -> emission;
+	log10_peak_tau -> absorption;
+	log10_xO_offset -> log10_xO	[minlen=1];
+	log10_thermal_fwhm -> log10_fwhm;
+	larson_power_offset -> larson_power	[minlen=1];
+	log10_density_offset -> log10_density	[minlen=1];
+	log10_fwhm -> emission;
+	log10_fwhm -> absorption;
+	log10_fwhm -> log10_peak_tau;
+	log10_heating -> log10_thermal_ratio;
+	log10_kinetic_temp -> log10_spin_temp;
+	log10_kinetic_temp -> log10_thermal_fwhm;
+	log10_kinetic_temp -> log10_heating;
+	log10_kinetic_temp -> log10_cooling;
+	log10_G0_offset -> log10_G0	[minlen=1];
+	velocity -> emission;
+	velocity -> absorption;
+	log10_n_alpha -> log10_spin_temp;
+	log10_G0 -> log10_heating;
+	log10_G0 -> log10_cooling;
+	log10_larson_linewidth_offset -> log10_larson_linewidth	[minlen=1];
+	log10_xCII -> log10_heating;
+	log10_xCII -> log10_cooling;
+	log10_inv_pah_recomb -> log10_heating;
+	log10_inv_pah_recomb -> log10_cooling;
+	velocity_offset -> velocity	[minlen=1];
+	log10_cr_ion_rate -> log10_heating;
+	log10_cr_ion_rate -> log10_cooling;
+	log10_density -> log10_depth;
+	log10_density -> log10_spin_temp;
+	log10_density -> log10_heating;
+	log10_density -> log10_cooling;
+	log10_NHI_offset -> log10_NHI	[minlen=1];
+	log10_cooling -> log10_thermal_ratio;
+	log10_inv_pah_recomb_offset -> log10_inv_pah_recomb	[minlen=1];
+	log10_larson_linewidth -> log10_nonthermal_fwhm;
+	emission_coeffs -> emission	[minlen=1];
+	absorption_coeffs -> absorption	[minlen=1];
+	log10_xCII_sigma	[label="log10_xCII_sigma
+~
+HalfNormal",
+		shape=ellipse];
+	log10_xCII_sigma -> log10_xCII	[minlen=2];
+	log10_xCII_mu	[label="log10_xCII_mu
+~
+Normal",
+		shape=ellipse];
+	log10_xCII_mu -> log10_xCII	[minlen=3];
+	velocity_sigma	[label="velocity_sigma
+~
+HalfNormal",
+		shape=ellipse];
+	velocity_sigma -> velocity	[minlen=2];
+	log10_NHI_mu	[label="log10_NHI_mu
+~
+Normal",
+		shape=ellipse];
+	log10_NHI_mu -> log10_NHI	[minlen=2];
+	log10_n_alpha_sigma	[label="log10_n_alpha_sigma
+~
+HalfNormal",
+		shape=ellipse];
+	log10_n_alpha_sigma -> log10_n_alpha	[minlen=2];
+	log10_n_alpha_mu	[label="log10_n_alpha_mu
+~
+Normal",
+		shape=ellipse];
+	log10_n_alpha_mu -> log10_n_alpha	[minlen=3];
+	log10_density_mu	[label="log10_density_mu
+~
+Normal",
+		shape=ellipse];
+	log10_density_mu -> log10_density	[minlen=2];
+	log10_thermal_ratio_sigma	[label="log10_thermal_ratio_sigma
+~
+HalfNormal",
+		shape=ellipse];
+	log10_thermal_ratio_sigma -> log10_thermal_ratio_offset	[minlen=1];
+	log10_density_sigma	[label="log10_density_sigma
+~
+HalfNormal",
+		shape=ellipse];
+	log10_density_sigma -> log10_density	[minlen=3];
+	log10_thermal_ratio_mu	[label="log10_thermal_ratio_mu
+~
+Normal",
+		shape=ellipse];
+	log10_thermal_ratio_mu -> log10_thermal_ratio_offset	[minlen=2];
+	velocity_mu	[label="velocity_mu
+~
+Normal",
+		shape=ellipse];
+	velocity_mu -> velocity	[minlen=3];
+	log10_inv_pah_recomb_mu	[label="log10_inv_pah_recomb_mu
+~
+Normal",
+		shape=ellipse];
+	log10_inv_pah_recomb_mu -> log10_inv_pah_recomb	[minlen=2];
+	larson_power_sigma	[label="larson_power_sigma
+~
+HalfNormal",
+		shape=ellipse];
+	larson_power_sigma -> larson_power	[minlen=2];
+	log10_inv_pah_recomb_sigma	[label="log10_inv_pah_recomb_sigma
+~
+HalfNormal",
+		shape=ellipse];
+	log10_inv_pah_recomb_sigma -> log10_inv_pah_recomb	[minlen=3];
+	larson_power_mu	[label="larson_power_mu
+~
+Normal",
+		shape=ellipse];
+	larson_power_mu -> larson_power	[minlen=3];
+	log10_larson_linewidth_sigma	[label="log10_larson_linewidth_sigma
+~
+HalfNormal",
+		shape=ellipse];
+	log10_larson_linewidth_sigma -> log10_larson_linewidth	[minlen=2];
+	log10_cr_ion_rate_sigma	[label="log10_cr_ion_rate_sigma
+~
+HalfNormal",
+		shape=ellipse];
+	log10_cr_ion_rate_sigma -> log10_cr_ion_rate	[minlen=2];
+	log10_NHI_sigma	[label="log10_NHI_sigma
+~
+HalfNormal",
+		shape=ellipse];
+	log10_NHI_sigma -> log10_NHI	[minlen=3];
+	log10_kinetic_temp_sigma	[label="log10_kinetic_temp_sigma
+~
+HalfNormal",
+		shape=ellipse];
+	log10_kinetic_temp_sigma -> log10_kinetic_temp	[minlen=2];
+	log10_kinetic_temp_mu	[label="log10_kinetic_temp_mu
+~
+Normal",
+		shape=ellipse];
+	log10_kinetic_temp_mu -> log10_kinetic_temp	[minlen=3];
+	log10_xO_sigma	[label="log10_xO_sigma
+~
+HalfNormal",
+		shape=ellipse];
+	log10_xO_sigma -> log10_xO	[minlen=2];
+	log10_xO_mu	[label="log10_xO_mu
+~
+Normal",
+		shape=ellipse];
+	log10_xO_mu -> log10_xO	[minlen=3];
+	log10_G0_mu	[label="log10_G0_mu
+~
+Normal",
+		shape=ellipse];
+	log10_G0_mu -> log10_G0	[minlen=2];
+	log10_cr_ion_rate_mu	[label="log10_cr_ion_rate_mu
+~
+Normal",
+		shape=ellipse];
+	log10_cr_ion_rate_mu -> log10_cr_ion_rate	[minlen=3];
+	log10_larson_linewidth_mu	[label="log10_larson_linewidth_mu
+~
+Normal",
+		shape=ellipse];
+	log10_larson_linewidth_mu -> log10_larson_linewidth	[minlen=3];
+	log10_G0_sigma	[label="log10_G0_sigma
+~
+HalfNormal",
+		shape=ellipse];
+	log10_G0_sigma -> log10_G0	[minlen=3];
+}
