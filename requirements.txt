@@ -1,0 +1,4 @@
+pymc>=5
+scipy
+scikit-learn
+graphviz
