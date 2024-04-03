@@ -72,13 +72,7 @@ class HierarchicalThermalModel(HierarchicalModel):
             "log10_thermal_ratio",
         ]
 
-        self._cluster_features += [
-            "log10_cr_ion_rate",
-            "log10_G0",
-            "log10_xCII",
-            "log10_xO",
-            "log10_inv_pah_recomb",
-        ]
+        self._cluster_features += []
 
         self.var_name_map.update(
             {

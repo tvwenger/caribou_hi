@@ -174,7 +174,7 @@ class BaseModel:
         """
         Check if posterior samples suggest a unique solution
         """
-        if self.solutions is None:
+        if self.solutions is None or len(self.solutions) == 0:
             raise ValueError("No solutions. Try solve()")
         return len(self.solutions) == 1
 
@@ -462,8 +462,12 @@ class BaseModel:
             bic :: scalar
                 Bayesian information criterion
         """
-        lnlike = self.lnlike_mean_point_estimate(chain=chain, solution=solution)
-        return self._n_params * np.log(self._n_data) - 2.0 * lnlike
+        try:
+            lnlike = self.lnlike_mean_point_estimate(chain=chain, solution=solution)
+            return self._n_params * np.log(self._n_data) - 2.0 * lnlike
+        except ValueError as e:
+            print(e)
+            return np.inf
 
     def good_chains(self, mad_threshold: float = 5.0):
         """
@@ -553,11 +557,16 @@ class BaseModel:
 
         return trace
 
-    def posterior_predictive_check(self, thin: int = 100, plot_fname: str = None):
+    def posterior_predictive_check(
+        self, solution: int = None, thin: int = 100, plot_fname: str = None
+    ):
         """
         Generate posterior predictive samples, and optionally plot the outcomes.
 
         Inputs:
+            solution :: integer
+                If None, generate posterior predictive samples from the un-clustered posterior
+                samples. Otherwise, generate predictive samples from this solution index.
             thin :: integer
                 Thin posterior samples by keeping one in {thin}
             plot_fname :: string
@@ -569,8 +578,16 @@ class BaseModel:
                 Object containing posterior and posterior predictive samples
         """
         with self.model:
+            if solution is None:
+                posterior = self.trace.posterior.sel(
+                    chain=self.good_chains(), draw=slice(None, None, thin)
+                )
+            else:
+                posterior = self.trace[f"solution_{solution}"].sel(
+                    draw=slice(None, None, thin)
+                )
             trace = pm.sample_posterior_predictive(
-                self.trace.sel(chain=self.good_chains(), draw=slice(None, None, thin)),
+                posterior,
                 extend_inferencedata=True,
                 random_seed=self.seed,
             )
@@ -589,7 +606,7 @@ class BaseModel:
                 self.data,
                 trace.posterior_predictive,
                 plot_fname,
-                posterior=trace.posterior,
+                posterior=posterior,
             )
 
         return trace
@@ -754,6 +771,8 @@ class BaseModel:
             p_threshold=p_threshold,
             seed=self.seed,
         )
+        if len(solutions) < 1 and self.verbose:
+            print("No solution found!")
 
         # convergence check
         unique_solution = len(solutions) == 1

@@ -63,9 +63,6 @@ class SimpleModel(BaseModel):
             "log10_NHI",
             "log10_density",
             "log10_kinetic_temp",
-            "log10_n_alpha",
-            "log10_larson_linewidth",
-            "larson_power",
             "velocity",
         ]
 
