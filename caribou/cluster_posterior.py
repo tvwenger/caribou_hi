@@ -63,23 +63,10 @@ def cluster_posterior(
 
     Returns: Nothing
     """
-
-    # First, fit a GMM to all chains
-    features = np.array([trace[param].data.flatten() for param in cluster_features]).T
-    all_gmm = GaussianMixture(
-        n_components=n_clusters,
-        max_iter=100,
-        init_params="random_from_data",
-        n_init=10,
-        verbose=False,
-        random_state=seed,
-    )
-    all_gmm.fit(features)
-    solutions = [{"gmm": all_gmm, "chains": {}}]
-
-    # Next, determine if a chain prefers a unique solution suggested by
+    # Determine if a chain prefers a unique solution suggested by
     # a significant difference between a GMM fit to only this chain compared
     # to the GMM of previous solutions
+    solutions = []
     for chain in trace.chain.data:
         features = np.array(
             [trace[param].sel(chain=chain).data.flatten() for param in cluster_features]
@@ -92,7 +79,7 @@ def cluster_posterior(
             verbose=False,
             random_state=seed,
         )
-        labels = mode(gmm.fit_predict(features).reshape(-1, n_clusters), axis=0).mode
+        gmm.fit(features)
 
         # Calculate multivariate z-score between this GMM and other
         # solution means to determine if this is a unique solution.
@@ -129,25 +116,32 @@ def cluster_posterior(
                     solution["gmm"].predict(features).reshape(-1, n_clusters),
                     axis=0,
                 ).mode
-                chain_order = np.where(matched)[1]
-                solution["chains"][chain] = {"label_order": solution_labels}
-                break
-
+                # ensure all labels present
+                if len(np.unique(solution_labels)) == len(solution_labels):
+                    solution["chains"][chain] = {"label_order": solution_labels}
+                    break
         # This is a unique solution
         else:
-            solution = {
-                "gmm": gmm,
-                "chains": {chain: {"label_order": labels}},
-            }
-            solutions.append(solution)
+            labels = mode(gmm.predict(features).reshape(-1, n_clusters), axis=0).mode
+            # ensure all labels present
+            if len(np.unique(labels)) == len(labels):
+                solution = {
+                    "gmm": gmm,
+                    "chains": {chain: {"label_order": labels}},
+                }
+                solutions.append(solution)
 
     # Each solution now has the labeling degeneracy broken, in that
     # each cloud has been assigned to a unique GMM cluster. We must
     # now determine which order of GMM clusters is preferred
+    good_solutions = []
     for solution in solutions:
         chain_order = np.array(
             [chain["label_order"] for chain in solution["chains"].values()]
         )
+        # no chains have unique feature labels, abort!
+        if len(chain_order) == 0:
+            continue
         unique_chain_orders, counts = np.unique(
             chain_order,
             axis=0,
@@ -187,5 +181,5 @@ def cluster_posterior(
         solution["posterior_clustered"] = posterior_clustered
         solution["coords"] = coords
         solution["dims"] = dims
-
-    return solutions
+        good_solutions.append(solution)
+    return good_solutions
