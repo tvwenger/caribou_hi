@@ -67,7 +67,7 @@ def calc_spin_temp(kinetic_temp: float, density: float, n_alpha: float) -> float
 
     # collisional de-excitation rate coefficient (Draine 2011)
     k10 = pt.switch(
-        kinetic_temp < 300.0,  # K
+        pt.lt(kinetic_temp, 300.0),  # K
         1.19e-10 * T2 ** (0.74 - 0.20 * pt.log(T2)),
         2.24e-10 * T2**0.207 * pt.exp(-0.876 / T2),
     )  # cm-3 s-1
@@ -158,7 +158,7 @@ def calc_line_profile(velo_axis: Iterable[float], velocity: Iterable[float], fwh
         Line profile (MHz-1; shape S x N)
     """
     amp = pt.sqrt(4.0 * pt.log(2.0) / (np.pi * fwhm**2.0))
-    profile = gaussian(velo_axis[:, None, None], amp, velocity, fwhm)
+    profile = gaussian(velo_axis[:, None], amp, velocity, fwhm)
 
     # normalize
     channel_size = pt.abs(velo_axis[1] - velo_axis[0])
@@ -228,7 +228,7 @@ def radiative_transfer(
     Iterable[float]
         Predicted emission brightness temperature spectrum (K) (length S)
     """
-    front_tau = pt.zeros_like(tau[:, 0, 0:1])
+    front_tau = pt.zeros_like(tau[:, 0:1])
     # cumulative optical depth through clouds
     sum_tau = pt.concatenate([front_tau, pt.cumsum(tau, axis=1)], axis=1)
 

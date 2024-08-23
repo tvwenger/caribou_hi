@@ -45,6 +45,22 @@ class EmissionModel(HIModel):
         # Save inputs
         self.bg_temp = bg_temp
 
+    def add_priors(self, *args, prior_rms_emission: float = 1.0, **kwargs):
+        """Add priors and deterministics to the model
+
+        Parameters
+        ----------
+        prior_rms_emission : float, optional
+            Prior distribution on emission rms (K), by default 1.0, where
+            rms_emission ~ HalfNormal(sigma=prior)
+        """
+        super().add_priors(*args, **kwargs)
+
+        with self.model:
+            # Spectral rms (K)
+            rms_emission_norm = pm.HalfNormal("rms_emission_norm", sigma=1.0)
+            _ = pm.Deterministic("rms_emission", rms_emission_norm * prior_rms_emission)
+
     def add_likelihood(self):
         """Add likelihood to the model. SpecData key must be "emission"."""
         # Predict optical depth spectrum (shape: spectral, clouds)

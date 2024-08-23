@@ -36,11 +36,27 @@ class AbsorptionModel(HIModel):
         # Initialize HIModel
         super().__init__(*args, **kwargs)
 
+    def add_priors(self, *args, prior_rms_absorption: float = 0.01, **kwargs):
+        """Add priors and deterministics to the model
+
+        Parameters
+        ----------
+        prior_rms_absorption : float, optional
+            Prior distribution on optical depth rms, by default 0.01, where
+            rms_absorption ~ HalfNormal(sigma=prior)
+        """
+        super().add_priors(*args, **kwargs)
+
+        with self.model:
+            # Optical depth rms
+            rms_absorption_norm = pm.HalfNormal("rms_absorption_norm", sigma=1.0)
+            _ = pm.Deterministic("rms_absorption", rms_absorption_norm * prior_rms_absorption)
+
     def add_likelihood(self):
         """Add likelihood to the model. SpecData key must be "absorption"."""
         # Predict optical depth spectrum (shape: spectral, clouds)
         optical_depth = physics.calc_optical_depth(
-            self.data["emission"].spectral,
+            self.data["absorption"].spectral,
             self.model["velocity"],
             10.0 ** self.model["log10_NHI"],
             self.model["tspin"],

@@ -76,7 +76,6 @@ class HIModel(BaseModel):
         prior_log10_larson_linewidth: Iterable[float] = [0.2, 0.1],
         prior_larson_power: Iterable[float] = [0.4, 0.1],
         prior_velocity: Iterable[float] = [0.0, 10.0],
-        prior_rms: float = 1.0,
         prior_baseline_coeffs: Optional[dict[str, Iterable[float]]] = None,
         ordered: bool = False,
     ):
@@ -105,9 +104,6 @@ class HIModel(BaseModel):
         prior_velocity : Iterable[float], optional
             Prior distribution on centroid velocity (km s-1), by default [0.0, 10.0], where
             velocity ~ Normal(mu=prior[0], sigma=prior[1])
-        prior_rms : float, optional
-            Prior distribution on spectral rms (K), by default 1.0, where
-            rms ~ HalfNormal(sigma=prior)
         prior_baseline_coeffs : Optional[dict[str, Iterable[float]]], optional
             Width of normal prior distribution on the normalized baseline polynomial coefficients.
             Keys are dataset names and values are lists of length `baseline_degree+1`. If None, use
@@ -191,10 +187,6 @@ class HIModel(BaseModel):
                     prior_velocity[0] + prior_velocity[1] * velocity_norm,
                     dims="cloud",
                 )
-
-            # Spectral rms (K)
-            rms_emission_norm = pm.HalfNormal("rms_emission_norm", sigma=1.0)
-            _ = pm.Deterministic("rms_emission", rms_emission_norm * prior_rms)
 
             # Spin temperature (K; shape: clouds)
             _ = pm.Deterministic(
