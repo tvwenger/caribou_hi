@@ -2,7 +2,7 @@
 
 ![publish](https://github.com/tvwenger/caribou_hi/actions/workflows/publish.yml/badge.svg)
 ![tests](https://github.com/tvwenger/caribou_hi/actions/workflows/tests.yml/badge.svg)
-[![Documentation Status](https://readthedocs.org/projects/caribou_hi/badge/?version=latest)](https://amoeba2.readthedocs.io/en/latest/?badge=latest)
+[![Documentation Status](https://readthedocs.org/projects/caribou_hi/badge/?version=latest)](https://caribou-hi.readthedocs.io/en/latest/?badge=latest)
 [![codecov](https://codecov.io/gh/tvwenger/caribou_hi/graph/badge.svg?token=164A1PMZ0D)](https://codecov.io/gh/tvwenger/caribou_hi)
 
 A Bayesian Model of the Diffuse Neutral Interstellar Medium
