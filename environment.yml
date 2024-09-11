@@ -1,10 +1,27 @@
-name: caribou
+name: caribou_hi-dev
 channels:
   - conda-forge
   - defaults
 dependencies:
+  - ipython
+  - versioneer
+  - numpy
   - pymc>=5
-  - pip
+  - pytensor
+  - nutpie
+  - numba
+  - arviz
+  - matplotlib
   - scipy
   - scikit-learn
   - graphviz
+  - jaxlib==0.4.28
+  - jax==0.4.28
+  - blackjax
+  - numpyro
+  - pip
+  - pip:
+    - "sphinx_rtd_theme"
+    - "nbsphinx"
+    - "numpydoc"
+    - "bayes_spec>=1.6.2"

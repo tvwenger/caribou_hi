@@ -1,182 +1,149 @@
 # Caribou <!-- omit in toc -->
+
+![publish](https://github.com/tvwenger/caribou_hi/actions/workflows/publish.yml/badge.svg)
+![tests](https://github.com/tvwenger/caribou_hi/actions/workflows/tests.yml/badge.svg)
+[![Documentation Status](https://readthedocs.org/projects/caribou_hi/badge/?version=latest)](https://amoeba2.readthedocs.io/en/latest/?badge=latest)
+[![codecov](https://codecov.io/gh/tvwenger/caribou_hi/graph/badge.svg?token=164A1PMZ0D)](https://codecov.io/gh/tvwenger/caribou_hi)
+
 A Bayesian Model of the Diffuse Neutral Interstellar Medium
 
-`Caribou` fits a cloud-based model of the diffuse neutral interstellar medium to neutral hydrogen (HI) 21 cm emission and absorption spectra.
+`caribou_hi` is a Bayesian model of the diffuse neutral interstellar medium written in the [`bayes_spec`](https://github.com/tvwenger/bayes_spec) spectral line modeling framework, which enables inference from observations of neutral hydrogen (HI) 21-cm emission and absorption spectra.
+
+Read below to get started, and check out the tutorials and guides here: https://caribou-hi.readthedocs.io.
 
 - [Installation](#installation)
+  - [Basic Installation](#basic-installation)
+  - [Development Installation](#development-installation)
+- [Notes on Physics \& Radiative Transfer](#notes-on-physics--radiative-transfer)
 - [Models](#models)
-  - [`SimpleModel`](#simplemodel)
-  - [`HierarchicalModel`](#hierarchicalmodel)
-  - [`ThermalModel`](#thermalmodel)
-  - [`HierarchicalThermalModel`](#hierarchicalthermalmodel)
-- [Algorithms](#algorithms)
-  - [Posterior Sampling: Variational Inference](#posterior-sampling-variational-inference)
-  - [Posterior Sampling: MCMC](#posterior-sampling-mcmc)
-  - [Posterior Clustering: Gaussian Mixture Models](#posterior-clustering-gaussian-mixture-models)
-  - [Optimization](#optimization)
+  - [`EmissionModel`](#emissionmodel)
+  - [`AbsorptionModel`](#absorptionmodel)
+  - [`EmissionAbsorptionModel`](#emissionabsorptionmodel)
+  - [`ordered`](#ordered)
 - [Syntax \& Examples](#syntax--examples)
 - [Issues and Contributing](#issues-and-contributing)
 - [License and Copyright](#license-and-copyright)
 
 
+
 # Installation
-Preferred: install in a `conda` virtual environment:
+
+## Basic Installation
+
+Install with `pip` in a `conda` virtual environment:
 ```
+conda create --name caribou_hi -c conda-forge pymc nutpie pip
+conda activate caribou_hi
+pip install caribou_hi
+```
+
+## Development Installation
+
+Alternatively, download and unpack the [latest release](https://github.com/tvwenger/caribou_hi/releases/latest), or [fork the repository](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/working-with-forks/fork-a-repo) and contribute to the development of `caribou_hi`!
+
+Install in a `conda` virtual environment:
+```
+cd /path/to/caribou_hi
 conda env create -f environment.yml
-conda activate caribou
-pip install .
-```
-
-Alternatively:
-```
-python setup.py install
-```
-
-If you wish to contribute to `Caribou`, then you may wish to install additional dependencies and install `Caribou` as an "editable" package:
-```
-conda env create -f environment-dev.yml
-conda activate caribou-dev
+conda activate caribou_hi-dev
 pip install -e .
 ```
 
+# Notes on Physics & Radiative Transfer
+
+All models in `caribou_hi` apply the same physics and equations of radiative transfer.
+
+The 21-cm excitation temperature (also called the spin temperature) is derived from the gas kinetic temperature, gas density, and Ly&alpha; photon density following [Kim et al. (2014) equation 4](https://ui.adsabs.harvard.edu/abs/2014ApJ...786...64K/abstract).
+
+Clouds are assumed to be homogenous and isothermal. The ratio of the column density to the volume density, both free parameters, thus determines the path length through the cloud. The non-thermal line broadening assumes a Larson law relationship.
+
+The optical depth and radiative transfer prescriptions follow that of [Marchal et al. (2019)](https://ui.adsabs.harvard.edu/abs/2019A%26A...626A.101M/abstract). By default, the clouds are ordered from *nearest* to *farthest*, so optical depth effects (i.e., self-absorption) may be present.
+
+
+Notably, since these are *forward models*, we do not make assumptions regarding the optical depth. These effects are *predicted* by the model. There is one exception: the `ordered` argument, [described below](#ordered).
+
 # Models
 
-## `SimpleModel`
+The models provided by `caribou_hi` are implemented in the [`bayes_spec`](https://github.com/tvwenger/bayes_spec) framework. `bayes_spec` assumes that the source of spectral line emission can be decomposed into a series of "clouds", each of which is defined by a set of model parameters. Here we define the models available in `caribou_hi`.
 
-`Caribou` assumes that the HI emission and absorption observations can be explained by the radiative transfer of 21 cm radiation through a series of isothermal, homogenous, neutral clouds. The simplest model is implemented via the `SimpleModel` class. The following diagram demonstrates the relationship between the free parameters (empty ellipses), deterministic quantities (rectangles), model predictions (filled ellipses), and observations (filled, round rectangles). The `cloud (4)` and `coeff (3)` sub-clusters represent the parameter groups for this four-cloud (`n_cloud=4`), 2nd order polynomial baseline (`baseline_degree=2`) model. The `v_em (201)` and `v_abs (201)` sub-clusters represent the emission and absorption data, respectively. The subsequent tables describe the model parameters in more detail.
+## `EmissionModel`
 
-![simple model graph](example/figures/simple_model.gv.svg)
+`EmissionModel` is a model that predicts 21-cm emission brightness temperature spectra. The `SpecData` key for this model must be `emission`. The following diagram demonstrates the relationship between the free parameters (empty ellipses), deterministic quantities (rectangles), model predictions (filled ellipses), and observations (filled, round rectangles). Many of the parameters are internally normalized (and thus have names like `_norm`). The subsequent tables describe the model parameters in more detail.
 
-| Observations          | Data                                        | Units    | Dimension | Comment                                       |
-| :-------------------- | :------------------------------------------ | :------- | :-------- | :-------------------------------------------- |
-| `emission_velocity`   | Velocity axis of emission spectrum          | `km s-1` | `v_em`    | Same reference frame as `absorption_velocity` |
-| `emission_noise`      | Channel-dependent emission spectrum noise   | `K`      | `v_em`    | Brightness temperature                        |
-| `emission_spectrum`   | HI emission spectrum                        | `K`      | `v_em`    | Brightness temperature<br>                    |
-| `absorption_velocity` | Velocity axis of absorption spectrum        | `km s-1` | `v_abs`   | Same reference frame as `emission_velocity`   |
-| `absorption_noise`    | Channel-dependent absorption spectrum noise | unitless | `v_abs`   | Optical depth ($\tau$)                        |
-| `absorption_spectrum` | HI absorption spectrum                      | unitless | `v_abs`   | Optical depth ($\tau$)                        |
+![emission model graph](docs/source/notebooks/emission_model.png)
 
-| Free Parameter<br>`variable` (dimension `cloud`) | Parameter                               | Units    | Prior, where<br>($p_0, p_1, \dots$) = `prior_{variable}`              | Default<br>`prior_{variable}` |
-| :----------------------------------------------- | :-------------------------------------- | :------- | :-------------------------------------------------------------------- | :---------------------------- |
-| `log10_NHI`                                      | HI column density                       | `cm-2`   | $\log_{10}N_{\rm HI} \sim {\rm Normal}(\mu=p_0, \sigma=p_1)$          | `[20.0, 1.0]`                 |
-| `log10_kinetic_temp`                             | Kinetic temperature                     | `K`      | $\log_{10}T_K \sim {\rm Normal}(\mu=p_0, \sigma=p_1)$                 | `[3.0, 1.0]`                  |
-| `log10_density`                                  | HI density                              | `cm-3`   | $\log_{10}n \sim {\rm Normal}(\mu=p_0, \sigma=p_1)$                   | `[0.0, 1.0]`                  |
-| `log10_n_alpha`                                  | Ly&alpha; photon density                | `cm-3`   | $\log_{10}n_\alpha \sim {\rm Normal}(\mu=p_0, \sigma=p_1)$            | `[-6.0, 1.0]`                 |
-| `log10_larson_linewidth`                         | Turbulent broadening FWHM at 1 pc       | `km s-1` | $\log_{10}\Delta V_{\rm 1 pc} \sim {\rm Normal}(\mu=p_0, \sigma=p_1)$ | `[0.2, 0.1]`                  |
-| `larson_power`                                   | Turbulent size-linewidth power law      | unitless | $\alpha \sim {\rm Normal}(\mu=p_0, \sigma=p_1)$                       | `[0.4, 0.1]`                  |
-| `velocity`                                       | Velocity (same reference frame as data) | `km s-1` | $V \sim {\rm Normal}(\mu=p_0, \sigma=p_1)$                            | `[0.0, 10.0]`                 |
+| Cloud Parameter<br>`variable` | Parameter                                 | Units    | Prior, where<br>($p_0, p_1, \dots$) = `prior_{variable}`              | Default<br>`prior_{variable}` |
+| :---------------------------- | :---------------------------------------- | :------- | :-------------------------------------------------------------------- | :---------------------------- |
+| `log10_NHI`                   | log10 HI column density                   | `cm-2`   | $\log_{10}N_{\rm HI} \sim {\rm Normal}(\mu=p_0, \sigma=p_1)$          | `[20.0, 1.0]`                 |
+| `log10_nHI`                   | log10 HI density                          | `cm-3`   | $\log_{10}n \sim {\rm Normal}(\mu=p_0, \sigma=p_1)$                   | `[0.0, 1.0]`                  |
+| `log10_tkin`                  | log10 kinetic temperature                 | `K`      | $\log_{10}T_K \sim {\rm Normal}(\mu=p_0, \sigma=p_1)$                 | `[3.0, 1.0]`                  |
+| `log10_n_alpha`               | log10 Ly&alpha; photon density            | `cm-3`   | $\log_{10}n_\alpha \sim {\rm Normal}(\mu=p_0, \sigma=p_1)$            | `[-6.0, 1.0]`                 |
+| `log10_larson_linewidth`      | Non-thermal broadening FWHM at 1 pc       | `km s-1` | $\log_{10}\Delta V_{\rm 1 pc} \sim {\rm Normal}(\mu=p_0, \sigma=p_1)$ | `[0.2, 0.1]`                  |
+| `larson_power`                | Nonthermal size-linewidth power law index | unitless | $\alpha \sim {\rm Normal}(\mu=p_0, \sigma=p_1)$                       | `[0.4, 0.1]`                  |
+| `velocity`                    | Velocity (same reference frame as data)   | `km s-1` | $V \sim {\rm Normal}(\mu=p_0, \sigma=p_1)$                            | `[0.0, 10.0]`                 |
 
-| Deterministic Quantity<br>(dimension `cloud`) | Quantity                 | Units    | Relationship                                                        | Comment                                                                                               |
-| :-------------------------------------------- | :----------------------- | :------- | :------------------------------------------------------------------ | :---------------------------------------------------------------------------------------------------- |
-| `log10_spin_temp`                             | Spin temperature         | `K`      | $T_S = f(T_K, n, n_\alpha)$                                         | [Kim et al. (2014)](https://ui.adsabs.harvard.edu/abs/2014ApJ...786...64K/abstract) equation 4        |
-| `log10_thermal_fwhm`                          | Thermal FWHM linewidth   | `km s-1` | $\Delta V_{\rm th} = \sqrt{8\ln2\frac{k_B T_K}{m_p}}$               |
-| `log10_depth`                                 | Line-of-sight depth      | `pc`     | $d = \frac{N_{\rm HI}}{n}$                                          |
-| `log10_nonthermal_fwhm`                       | Turbulent FWHM linewidth | `km s-1` | $\Delta V_{\rm nth} = \Delta V_{\rm 1 pc}(\frac{d}{\rm pc})^\alpha$ |
-| `log10_fwhm`                                  | Total FWHM linewidth     | `km s-1` | $\Delta V = \sqrt{\Delta V_{\rm th}^2 + \Delta V_{\rm nth}^2}$      |
-| `log10_peak_tau`                              | Peak optical depth       | `km s-1` | $\tau_0 = f(n, T_S, \Delta V)$                                      | [Marchal et al. (2019)](https://ui.adsabs.harvard.edu/abs/2019A%26A...626A.101M/abstract) equation 15 |
+| Hyper Parameter<br>`variable` | Parameter                   | Units | Prior, where<br>($p_0, p_1, \dots$) = `prior_{variable}` | Default<br>`prior_{variable}` |
+| :---------------------------- | :-------------------------- | :---- | :------------------------------------------------------- | :---------------------------- |
+| `rms_emission`                | Emission spectrum rms noise | `K`   | ${\rm rms}_{T} \sim {\rm HalfNormal}(\sigma=p)$          | `1.0`                         |
 
-| Model Prediction | Quantity                  | Units    | Dimension | Likelihood                                                                                       | Comment                                                                                               |
-| :--------------- | :------------------------ | :------- | :-------- | :----------------------------------------------------------------------------------------------- | :---------------------------------------------------------------------------------------------------- |
-| `emission`       | HI emission spectrum      | `K`      | `v_em`    | ${\rm Normal}(\mu = f(T_s, \tau) -$  `emission_spectrum` $, \sigma=$ `emission_noise` $)$           | [Marchal et al. (2019)](https://ui.adsabs.harvard.edu/abs/2019A%26A...626A.101M/abstract) equation 14 |
-| `absorption`     | HI optical depth spectrum | unitless | `v_abs`   | ${\rm Normal}(\mu = f(n, T_S, \Delta V) -$ `absorption_spectrum` $, \sigma=$ `absorption_noise` $)$ | [Marchal et al. (2019)](https://ui.adsabs.harvard.edu/abs/2019A%26A...626A.101M/abstract) equation 15 |
+## `AbsorptionModel`
 
-## `HierarchicalModel`
+`AbsorptionModel` is otherwise identical to `EmissionModel`, except it predicts 21-cm optical depth spectra. The `SpecData` key for this model must be `absorption`. The following diagram demonstrates the model, and the subsequent table describe the additional model parameters.
 
-An extension of `SimpleModel`, where the prior distribution shapes are themselves free parameters. The cloud parameters are then determined from these hyper-prior distributions using a non-centered hierarchical model. The hyperparameters are described below.
+![absorption model graph](docs/source/notebooks/absorption_model.png)
 
-![hierarchical model graph](example/figures/hierarchical_model.gv.svg)
+| Cloud Parameter<br>`variable` | Parameter                                 | Units    | Prior, where<br>($p_0, p_1, \dots$) = `prior_{variable}`              | Default<br>`prior_{variable}` |
+| :---------------------------- | :---------------------------------------- | :------- | :-------------------------------------------------------------------- | :---------------------------- |
+| `log10_NHI`                   | log10 HI column density                   | `cm-2`   | $\log_{10}N_{\rm HI} \sim {\rm Normal}(\mu=p_0, \sigma=p_1)$          | `[20.0, 1.0]`                 |
+| `log10_nHI`                   | log10 HI density                          | `cm-3`   | $\log_{10}n \sim {\rm Normal}(\mu=p_0, \sigma=p_1)$                   | `[0.0, 1.0]`                  |
+| `log10_tkin`                  | log10 kinetic temperature                 | `K`      | $\log_{10}T_K \sim {\rm Normal}(\mu=p_0, \sigma=p_1)$                 | `[3.0, 1.0]`                  |
+| `log10_n_alpha`               | log10 Ly&alpha; photon density            | `cm-3`   | $\log_{10}n_\alpha \sim {\rm Normal}(\mu=p_0, \sigma=p_1)$            | `[-6.0, 1.0]`                 |
+| `log10_larson_linewidth`      | Non-thermal broadening FWHM at 1 pc       | `km s-1` | $\log_{10}\Delta V_{\rm 1 pc} \sim {\rm Normal}(\mu=p_0, \sigma=p_1)$ | `[0.2, 0.1]`                  |
+| `larson_power`                | Nonthermal size-linewidth power law index | unitless | $\alpha \sim {\rm Normal}(\mu=p_0, \sigma=p_1)$                       | `[0.4, 0.1]`                  |
+| `velocity`                    | Velocity (same reference frame as data)   | `km s-1` | $V \sim {\rm Normal}(\mu=p_0, \sigma=p_1)$                            | `[0.0, 10.0]`                 |
 
-| Free Parameter<br>`variable` (dimension `cloud`) | Hyper-distribution                 | Units    | Hyper-prior, where<br>($p_0, p_1, \dots$) = `prior_{variable}`                                                                                                                                                                                                                  | Default `prior_{variable}` |
-| :----------------------------------------------- | :--------------------------------- | :------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | :------------------------- |
-| `log10_NHI`                                      | HI column density                  | `cm-2`   | `log10_NHI_mu` $\sim {\rm Normal}(\mu = p_0, \sigma = p_1)$<br> `log10_NHI_sigma` $\sim {\rm HalfNormal}(\sigma = p_2)$<br>$\log_{10}N_{\rm HI} \sim {\rm Normal}(\mu=$ `log10_NHI_mu` $, \sigma=$ `log10_NHI_sigma` $)$                                                             | `[20.0, 0.5, 0.5]`         |
-| `log10_kinetic_temp`                             | Kinetic temperature                | `K`      | `log10_kinetic_temp_mu` $\sim {\rm Normal}(\mu = p_0, \sigma = p_1)$<br> `log10_kinetic_temp_sigma` $\sim {\rm HalfNormal}(\sigma = p_2)$<br>$\log_{10}T_K \sim {\rm Normal}(\mu=$ `log10_kinetic_temp_mu` $, \sigma=$ `log10_kinetic_temp_sigma` $)$                                | `[3.0, 0.5, 0.5]`          |
-| `log10_density`                                  | HI density                         | `cm-3`   | `log10_density_mu` $\sim {\rm Normal}(\mu = p_0, \sigma = p_1)$<br> `log10_density_sigma` $\sim {\rm HalfNormal}(\sigma = p_2)$<br>$\log_{10}n \sim {\rm Normal}(\mu=$ `log10_density_mu` $, \sigma=$ `log10_density_sigma` $)$                                                      | `[0.0, 0.5, 0.5]`          |
-| `log10_n_alpha`                                  | Ly&alpha; photon density           | `cm-3`   | `log10_n_alpha_mu` $\sim {\rm Normal}(\mu = p_0, \sigma = p_1)$<br>`log10_n_alpha_sigma` $\sim {\rm HalfNormal}(\sigma = p_2)$ <br> $\log_{10}n_\alpha \sim {\rm Normal}(\mu=$ `log10_n_alpha_mu` $, \sigma=$ `log10_n_alpha_sigma` $)$                                               | `[-6.0, 0.5, 0.5]`         |
-| `log10_larson_linewidth`                         | Turbulent broadening FWHM at 1 pc  | `km s-1` | `log10_larson_linewidth_mu` $\sim {\rm Normal}(\mu = p_0, \sigma = p_1)$ <br> `log10_larson_linewidth_sigma` $\sim {\rm HalfNormal}(\sigma = p_2)$ <br> $\log_{10}\Delta V_{\rm 1 pc} \sim {\rm Normal}(\mu=$ `log10_larson_linewidth_mu` $, \sigma=$ `log10larson_linewidth_sigma` $)$ | `[0.2, 0.05, 0.05]`        |
-| `larson_power`                                   | Turbulent size-linewidth power law | unitless | `larson_power_mu` $\sim {\rm Normal}(\mu = p_0, \sigma = p_1)$ <br> `larson_power_sigma` $\sim {\rm HalfNormal}(\sigma = p_2)$ <br> $\alpha \sim {\rm Normal}(\mu=$ `larson_power_mu` $, \sigma=$ `larson_power_sigma` $)$                                                              | `[0.4, 0.05, 0.05]`        |
-| `velocity`                                       | Velocity                           | `km s-1` | `velocity_mu` $\sim {\rm Normal}(\mu = p_0, \sigma = p_1)$ <br> `velocity_sigma` $\sim {\rm HalfNormal}(\sigma = p_2)$ <br> $V \sim {\rm Normal}(\mu=$ `velocity_mu` $, \sigma=$ `velocity_sigma` $)$                                                                                   | `[0.0, 5.0, 5.0]`          |
+| Hyper Parameter<br>`variable` | Parameter                        | Units | Prior, where<br>($p_0, p_1, \dots$) = `prior_{variable}` | Default<br>`prior_{variable}` |
+| :---------------------------- | :------------------------------- | :---- | :------------------------------------------------------- | :---------------------------- |
+| `rms_absorption`              | Optical depth spectrum rms noise | `K`   | ${\rm rms}_{\tau} \sim {\rm HalfNormal}(\sigma=p)$       | `0.01`                        |
 
-## `ThermalModel`
+## `EmissionAbsorptionModel`
 
-`ThermalModel` extends `SimpleModel` to additionally constrain the thermal balance of each cloud. This model is demonstrated and described below.
+Finally, `EmissionAbsorptionModel` predicts both 21-cm emission (brightness temperature) and optical depth spectra assuming that both observations trace the same gas. The `SpecData` keys must be `emission` and `absorption`. The following diagram demonstrates the model, and the subsequent table describe the additional model parameters.
 
-![thermal model graph](example/figures/thermal_model.gv.svg)
+![emission absorption model graph](docs/source/notebooks/emission_absorption_model.png)
 
-| Observation                | Data  | Units    | Dimension | Comment                                                         |
-| :------------------------- | :---- | :------- | :-------- | :-------------------------------------------------------------- |
-| `log10_zero_thermal_ratio` | Zeros | Unitless | `cloud`   | Forces `log10_thermal_ratio_offset` to match prior distribution |
+| Cloud Parameter<br>`variable` | Parameter                                 | Units    | Prior, where<br>($p_0, p_1, \dots$) = `prior_{variable}`              | Default<br>`prior_{variable}` |
+| :---------------------------- | :---------------------------------------- | :------- | :-------------------------------------------------------------------- | :---------------------------- |
+| `log10_NHI`                   | log10 HI column density                   | `cm-2`   | $\log_{10}N_{\rm HI} \sim {\rm Normal}(\mu=p_0, \sigma=p_1)$          | `[20.0, 1.0]`                 |
+| `log10_nHI`                   | log10 HI density                          | `cm-3`   | $\log_{10}n \sim {\rm Normal}(\mu=p_0, \sigma=p_1)$                   | `[0.0, 1.0]`                  |
+| `log10_tkin`                  | log10 kinetic temperature                 | `K`      | $\log_{10}T_K \sim {\rm Normal}(\mu=p_0, \sigma=p_1)$                 | `[3.0, 1.0]`                  |
+| `log10_n_alpha`               | log10 Ly&alpha; photon density            | `cm-3`   | $\log_{10}n_\alpha \sim {\rm Normal}(\mu=p_0, \sigma=p_1)$            | `[-6.0, 1.0]`                 |
+| `log10_larson_linewidth`      | Non-thermal broadening FWHM at 1 pc       | `km s-1` | $\log_{10}\Delta V_{\rm 1 pc} \sim {\rm Normal}(\mu=p_0, \sigma=p_1)$ | `[0.2, 0.1]`                  |
+| `larson_power`                | Nonthermal size-linewidth power law index | unitless | $\alpha \sim {\rm Normal}(\mu=p_0, \sigma=p_1)$                       | `[0.4, 0.1]`                  |
+| `velocity`                    | Velocity (same reference frame as data)   | `km s-1` | $V \sim {\rm Normal}(\mu=p_0, \sigma=p_1)$                            | `[0.0, 10.0]`                 |
 
-| Free Parameter<br>`variable` (dimension `cloud`) | Parameter                                    | Units                                  | Prior, where<br>($p_0, p_1, \dots$) = `prior_{variable}`                     | Default<br>`prior_{variable}` |
-| :----------------------------------------------- | :------------------------------------------- | :------------------------------------- | :--------------------------------------------------------------------------- | :---------------------------- |
-| `log10_cr_ion_rate`                              | Soft X-ray and cosmic ray ionization rate    | `s-1`                                  | $\log_{10}\zeta_{\rm CR} \sim {\rm Normal}(\mu=p_0, \sigma=p_1)$             | `[-16.0, 1.0]`                |
-| `log10_G0`                                       | FUV radiation field normalization            | Habing<br>(1 = local,<br>1.6 = Draine) | $\log_{10}G_0 \sim {\rm Normal}(\mu=p_0, \sigma=p_1)$                        | `[0.0, 1.0]`                  |
-| `log10_xCII`                                     | ${\rm C}^+$ abundance                        | unitless                               | $\log_{10}x_{{\rm C}^+} \sim {\rm Normal}(\mu=p_0, \sigma=p_1)$              | `[-4.0, 1.0]`                 |
-| `log10_xO`                                       | O abundance                                  | unitless                               | $\log_{10}x_{\rm O} \sim {\rm Normal}(\mu=p_0, \sigma=p_1)$                  | `[-4.0, 1.0]`                 |
-| `log10_inv_pah_recomb`                           | Recombination parameter of electrons on PAHs | unitless                               | $\log_{10}\phi^{-1}_{\rm PAH} \sim {\rm Normal}$<br> $(\mu=p_0, \sigma=p_1)$ | `[0.2, 0.1]`                  |
+| Hyper Parameter<br>`variable` | Parameter                        | Units | Prior, where<br>($p_0, p_1, \dots$) = `prior_{variable}` | Default<br>`prior_{variable}` |
+| :---------------------------- | :------------------------------- | :---- | :------------------------------------------------------- | :---------------------------- |
+| `rms_emission`                | Emission spectrum rms noise      | `K`   | ${\rm rms}_{T} \sim {\rm HalfNormal}(\sigma=p)$          | `1.0`                         |
+| `rms_absorption`              | Optical depth spectrum rms noise | `K`   | ${\rm rms}_{\tau} \sim {\rm HalfNormal}(\sigma=p)$       | `0.01`                        |
 
-| Deterministic Quantity<br>(dimension `cloud`) | Quantity                   | Units          | Relationship                                                                    | Comment                                                                                              |
-| :-------------------------------------------- | :------------------------- | :------------- | :------------------------------------------------------------------------------ | :--------------------------------------------------------------------------------------------------- |
-| `log10_elec_density`                          | Electron density           | `cm-3`         | $n_e = f(n, \zeta_{\rm CR}, T_K, G_0, x_{{\rm C}^+}, \phi_{\rm PAH})$           | [Bellomi et al. (2020)](https://ui.adsabs.harvard.edu/abs/2020A%26A...643A..36B/abstract) Appendix B |
-| `log10_cooling`                               | Cooling rate               | `erg s-1 cm-3` | $\mathcal{L} = f(n, n_e, T_K, G_0, x_{{\rm C}^+}, x_{{\rm O}}, \phi_{\rm PAH})$ | [Bellomi et al. (2020)](https://ui.adsabs.harvard.edu/abs/2020A%26A...643A..36B/abstract) Appendix B |
-| `log10_heating`                               | Heating rate               | `erg s-1 cm-3` | $\mathcal{G} = f(n, n_e, T_K, G_0, x_{{\rm C}^+}, x_{{\rm O}}, \phi_{\rm PAH})$ | [Bellomi et al. (2020)](https://ui.adsabs.harvard.edu/abs/2020A%26A...643A..36B/abstract) Appendix B |
-| `log10_thermal_ratio`                         | Cooling divided by heating | unitless       | $\log_{10}(\mathcal{L}/\mathcal{G})$                                            |                                                                                                      |
+## `ordered`
 
+An additional parameter to `set_priors` for these models is `ordered`. By default, this parameter is `False`, in which case the order of the clouds is from *nearest* to *farthest*. Sampling from these models can be challenging due to the labeling degeneracy: if the order of clouds does not matter (i.e., the emission is optically thin), then each Markov chain could decide on a different, equally-valid order of clouds.
 
+If we assume that the emission is optically thin, then we can set `ordered=True`, in which case the order of clouds is restricted to be increasing with velocity. This assumption can *drastically* improve sampling efficiency. When `ordered=True`, the `velocity` prior is defined differently:
 
-| Model Prediction             | Quantity                             | Units    | Dimension | Likelihood                                                                                                                              | Comment                                                                            |
-| :--------------------------- | :----------------------------------- | :------- | :-------- | :-------------------------------------------------------------------------------------------------------------------------------------- | :--------------------------------------------------------------------------------- |
-| `log10_thermal_ratio_offset` | Thermal ratio offset from prior mean | unitless | `cloud`   | ${\rm Normal}(\mu = \log_{10}(\mathcal{L}/\mathcal{G}) -$ `prior_log10_thermal_ratio[0]` $, \sigma=$ `prior_log10_thermal_ratio[1]` $)$ | Technically we "observe" `log10_zero_thermal_ratio`<br>Default prior: `[0.0, 1.0]` |
-
-## `HierarchicalThermalModel`
-
-An extension of `ThermalModel`, where the prior distribution shapes are themselves free parameters. The cloud parameters are then determined from these hyperprior distributions using a non-centered hierarchical model. The hyperparameters are described below.
-
-![hierarchical thermal model graph](example/figures/hierarchical_thermal_model.gv.svg)
-
-| Free Parameter<br>`variable` (dimension `cloud`) | Hyper-distribution                           | Units    | Hyper-prior, where<br>($p_0, p_1, \dots$) = `prior_{variable}`                                                                                                                                                                                                            | Default `prior_{variable}` |
-| :----------------------------------------------- | :------------------------------------------- | :------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | :------------------------- |
-| `log10_cr_ion_rate`                              | Soft X-ray and cosmic ray ionization rate    | `s-1`    | `log10_cr_ion_mu` $\sim {\rm Normal}(\mu = p_0, \sigma = p_1)$ <br> `log10_cr_ion_sigma` $\sim {\rm HalfNormal}(\sigma = p_2)$ <br> $\log_{10}\zeta_{\rm CR} \sim {\rm Normal}(\mu=$ `log10_cr_ion_mu` $, \sigma=$ `log10_cr_ion_sigma` $)$                                       | `[-16.0, 0.5, 0.5]`        |
-| `log10_G0`                                       | FUV radiation field normalization            | Habing   | `log10_G0_mu` $\sim {\rm Normal}(\mu = p_0, \sigma = p_1)$ <br> `log10_G0_sigma` $\sim {\rm HalfNormal}(\sigma = p_2)$ <br> $\log_{10}G_0 \sim {\rm Normal}(\mu=$ `log10_G0_mu` $, \sigma=$ `log10_G0_sigma` $)$                                                                  | `[0.0, 0.5, 0.5]`          |
-| `log10_xCII`                                     | ${\rm C}^+$ abundance                        | unitless | `log10_xCII_mu` $\sim {\rm Normal}(\mu = p_0, \sigma = p_1)$ <br> `log10_xCII_sigma` $\sim {\rm HalfNormal}(\sigma = p_2)$ <br> $\log_{10}x_{{\rm C}^+} \sim {\rm Normal}(\mu=$ `log10_xCII_mu` $, \sigma=$ `log10_xCII_sigma` $)$                                                | `[-4.0, 0.5, 0.5]`         |
-| `log10_xO`                                       | O abundance                                  | unitless | `log10_xO_mu` $\sim {\rm Normal}(\mu = p_0, \sigma = p_1)$ <br> `log10_xO_sigma` $\sim {\rm HalfNormal}(\sigma = p_2)$ <br> $\log_{10}x_{{\rm O}} \sim {\rm Normal}(\mu=$ `log10_xO_mu` $, \sigma=$ `log10_xO_sigma` $)$                                                          | `[-4.0, 0.5, 0.5]`         |
-| `log10_inv_pah_recomb`                           | Recombination parameter of electrons on PAHs | unitless | `log10_inv_pah_recomb_mu` $\sim {\rm Normal}(\mu = p_0, \sigma = p_1)$ <br> `log10_inv_pah_recomb_sigma` $\sim {\rm HalfNormal}(\sigma = p_2)$ <br> $\log_{10} \phi^{-1}_{\rm PAH} \sim {\rm Normal}(\mu=$ `log10_inv_pah_recomb_mu` $, \sigma=$ `log10_inv_pah_recomb_sigma` $)$ | `[0.2, 0.05, 0.05]`        |
-|                                                  |
-
-| Model Prediction             | Quantity                             | Units    | Dimension | Likelihood                                                                                                                                                                                                                                                                            | Comment                                                                                 |
-| :--------------------------- | :----------------------------------- | :------- | :-------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | :-------------------------------------------------------------------------------------- |
-| `log10_thermal_ratio_offset` | Thermal ratio offset from prior mean | unitless | `cloud`   | ${\rm Normal}(\mu = \log_{10}(\mathcal{L}/\mathcal{G}) -$ `log10_thermal_ratio_mu` $, \sigma=$ `log10_thermal_ratio_sigma` $)$<br>where<br>`log10_thermal_ratio_mu` $\sim {\rm Normal}(\mu = p_0, \sigma = p_1)$<br>`log10_thermal_ratio_sigma` $\sim {\rm HalfNormal}(\sigma = p_2)$ | Technically we "observe" `log10_zero_thermal_ratio`<br>Default prior: `[0.0, 0.5, 0.5]` |
-
-
-# Algorithms
-
-## Posterior Sampling: Variational Inference
-
-`Caribou` can sample from an approximation of model posterior distribution using [variational inference (VI)](https://www.pymc.io/projects/examples/en/latest/variational_inference/variational_api_quickstart.html). The benefit of VI is that it is fast, but the downside is that it often fails to capture complex posterior topologies. We recommend only using VI for quick model tests or MCMC initialization. Draw posterior samples using VI via `model.fit()`.
-
-## Posterior Sampling: MCMC
-
-`Caribou` can also use MCMC to sample the posterior distribution. MCMC sampling tends to be much slower but also more accurate. Draw posterior samples using MCMC via `model.sample()`.
-
-## Posterior Clustering: Gaussian Mixture Models
-
-Assuming that we have drawn posterior samples via MCMC using multiple independent Markov chains, then it is possible that each chain disagrees on the order of clouds. This is known as the labeling degeneracy. For optically thin radiative transfer, the order of clouds along the line-of-sight is arbitrary so each chain may converge to a different label order. For HI radiative transfer, optical depth effects may break this degeneracy, but it is not guaranteed.
-
-It is also possible that the model solution is degenerate, the posterior distribution is strongly multi-modal, and each chain converges to different, unique solutions.
-
-`Caribou` uses Gaussian Mixture Models (GMMs) to break the labeling degeneracy and identify unique solutions. After sampling, execute `model.solve()` to fit a GMM to the posterior samples of each chain individually. Unique solutions are identified by discrepant GMM fits, and we break the labeling degeneracy by adopting the most common cloud order amongst chains.
-
-## Optimization
-
-`Caribou` can optimize the number of clouds in addition to the other model parameters. The `Optimize` class will use VI to estimate the preferred number of clouds, and then sample the "best" model with MCMC.
+| Cloud Parameter<br>`variable` | Parameter | Units    | Prior, where<br>($p_0, p_1, \dots$) = `prior_{variable}`                 | Default<br>`prior_{variable}` |
+| :---------------------------- | :-------- | :------- | :----------------------------------------------------------------------- | :---------------------------- |
+| `velocity`                    | Velocity  | `km s-1` | $V_i \sim p_0 + \sum_0^{i-1} V_i + {\rm Gamma}(\alpha=2, \beta=1.0/p_1)$ | `[0.0, 1.0]`                  |
 
 # Syntax & Examples
 
-See the various notebooks under [examples](https://github.com/tvwenger/caribou/tree/main/examples).
+See the various tutorial notebooks under [docs/source/notebooks](https://github.com/tvwenger/caribou_hi/tree/main/docs/source/notebooks). Tutorials and the full API are available here: https://caribou-hi.readthedocs.io.
 
 # Issues and Contributing
 
-Anyone is welcome to submit issues or contribute to the development
-of this software via [Github](https://github.com/tvwenger/caribou).
+Anyone is welcome to submit issues or contribute to the development of this software via [Github](https://github.com/tvwenger/caribou_hi).
 
 # License and Copyright
 
