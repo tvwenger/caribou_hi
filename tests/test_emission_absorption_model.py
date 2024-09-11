@@ -27,11 +27,13 @@ from caribou_hi import EmissionAbsorptionModel
 
 
 def test_emission_absorption_model():
-    velocity = np.linspace(-20.0, 20.0, 1000)
-    brightness = np.random.randn(1000)
+    emission_velocity = np.linspace(-20.0, 20.0, 1000)
+    absorption_velocity = np.linspace(-20.0, 20.0, 500)
+    emission = np.random.randn(1000)
+    absorption = np.random.randn(500)
     data = {
-        "emission": SpecData(velocity, brightness, 1.0),
-        "absorption": SpecData(velocity, brightness, 1.0),
+        "emission": SpecData(emission_velocity, emission, 1.0),
+        "absorption": SpecData(absorption_velocity, absorption, 1.0),
     }
     model = EmissionAbsorptionModel(data, 2, baseline_degree=1)
     model.add_priors()
@@ -40,11 +42,13 @@ def test_emission_absorption_model():
 
 
 def test_emission_absorption_model_ordered():
-    velocity = np.linspace(-20.0, 20.0, 1000)
-    brightness = np.random.randn(1000)
+    emission_velocity = np.linspace(-20.0, 20.0, 1000)
+    absorption_velocity = np.linspace(-20.0, 20.0, 500)
+    emission = np.random.randn(1000)
+    absorption = np.random.randn(500)
     data = {
-        "emission": SpecData(velocity, brightness, 1.0),
-        "absorption": SpecData(velocity, brightness, 1.0),
+        "emission": SpecData(emission_velocity, emission, 1.0),
+        "absorption": SpecData(absorption_velocity, absorption, 1.0),
     }
     model = EmissionAbsorptionModel(data, 2, baseline_degree=1)
     model.add_priors(ordered=True)

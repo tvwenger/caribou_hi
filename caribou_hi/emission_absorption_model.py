@@ -71,7 +71,14 @@ class EmissionAbsorptionModel(HIModel):
     def add_likelihood(self):
         """Add likelihood to the model. SpecData key must be "emission"."""
         # Predict optical depth spectrum (shape: spectral, clouds)
-        optical_depth = physics.calc_optical_depth(
+        absorption_optical_depth = physics.calc_optical_depth(
+            self.data["absorption"].spectral,
+            self.model["velocity"],
+            10.0 ** self.model["log10_NHI"],
+            self.model["tspin"],
+            self.model["fwhm"],
+        )
+        emission_optical_depth = physics.calc_optical_depth(
             self.data["emission"].spectral,
             self.model["velocity"],
             10.0 ** self.model["log10_NHI"],
@@ -80,10 +87,10 @@ class EmissionAbsorptionModel(HIModel):
         )
 
         # Sum over clouds
-        predicted_absorption = optical_depth.sum(axis=1)
+        predicted_absorption = absorption_optical_depth.sum(axis=1)
 
         # Evaluate radiative transfer
-        predicted_emission = physics.radiative_transfer(optical_depth, self.model["tspin"], self.bg_temp)
+        predicted_emission = physics.radiative_transfer(emission_optical_depth, self.model["tspin"], self.bg_temp)
 
         # Add baseline models
         baseline_models = self.predict_baseline()

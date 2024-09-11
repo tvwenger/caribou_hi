@@ -24,7 +24,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 from typing import Iterable, Optional
 from abc import abstractmethod
 
-import numpy as np
 import pymc as pm
 import pytensor.tensor as pt
 
@@ -180,7 +179,6 @@ class HIModel(BaseModel):
                     mu=0.0,
                     sigma=1.0,
                     dims="cloud",
-                    initval=np.linspace(-1.0, 1.0, self.n_clouds),
                 )
                 _ = pm.Deterministic(
                     "velocity",

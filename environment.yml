@@ -1,15 +1,10 @@
-name: caribou-dev
+name: caribou_hi-dev
 channels:
   - conda-forge
   - defaults
 dependencies:
   - ipython
-  - jupyter_contrib_nbextensions
-  - jupyter_nbextensions_configurator
-  - ipywidgets
   - versioneer
-  - black
-  - flake8
   - numpy
   - pymc>=5
   - pytensor
