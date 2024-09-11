@@ -1,4 +1,4 @@
-# Caribou <!-- omit in toc -->
+# `caribou_hi` <!-- omit in toc -->
 
 ![publish](https://github.com/tvwenger/caribou_hi/actions/workflows/publish.yml/badge.svg)
 ![tests](https://github.com/tvwenger/caribou_hi/actions/workflows/tests.yml/badge.svg)
