@@ -207,12 +207,14 @@ def calc_optical_depth(
 def radiative_transfer(
     tau: Iterable[float],
     tspin: Iterable[float],
+    filling_factor: Iterable[float],
     bg_temp: float,
 ) -> Iterable[float]:
     """Evaluate the radiative transfer to predict the emission spectrum. The emission
     spectrum is ON - OFF, where ON includes the attenuated emission of the background and
     the clouds, and the OFF is the emission of the background. Order of N clouds is
-    assumed to be [nearest, ..., farthest].
+    assumed to be [nearest, ..., farthest]. The contribution of each cloud is diluted by the
+    filling factor, a number between zero and one.
 
     Parameters
     ----------
@@ -220,6 +222,8 @@ def radiative_transfer(
         Optical depth spectra (shape S x N)
     tspin : Iterable[float]
         Spin temperatures (K) (length N)
+    filling_factor : Iterable[float]
+        Filling factor (between zero and one) (length N)
     bg_temp : float
         Assumed background temperature
 
@@ -234,7 +238,7 @@ def radiative_transfer(
 
     # radiative transfer, assuming filling factor = 1.0
     emission_bg_attenuated = bg_temp * pt.exp(-sum_tau[:, -1])
-    emission_clouds = tspin * (1.0 - pt.exp(-tau))
+    emission_clouds = filling_factor * tspin * (1.0 - pt.exp(-tau))
     emission_clouds_attenuated = emission_clouds * pt.exp(-sum_tau[:, :-1])
     emission = emission_bg_attenuated + emission_clouds_attenuated.sum(axis=1)
 
