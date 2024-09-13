@@ -96,5 +96,6 @@ def test_radiative_transfer():
     tspin = np.array([1000.0, 5000.0])
     optical_depth = physics.calc_optical_depth(velo_axis, velocity, NHI, tspin, fwhm).eval()
     bg_temp = 2.7
-    tb = physics.radiative_transfer(optical_depth, tspin, bg_temp).eval()
+    filling_factor = 1.0
+    tb = physics.radiative_transfer(optical_depth, tspin, filling_factor, bg_temp).eval()
     assert tb.shape == (1001,)

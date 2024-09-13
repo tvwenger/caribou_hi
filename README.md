@@ -19,12 +19,11 @@ Read below to get started, and check out the tutorials and guides here: https://
   - [`EmissionModel`](#emissionmodel)
   - [`AbsorptionModel`](#absorptionmodel)
   - [`EmissionAbsorptionModel`](#emissionabsorptionmodel)
+  - [`EmissionAbsorptionFFModel`](#emissionabsorptionffmodel)
   - [`ordered`](#ordered)
 - [Syntax \& Examples](#syntax--examples)
 - [Issues and Contributing](#issues-and-contributing)
 - [License and Copyright](#license-and-copyright)
-
-
 
 # Installation
 
@@ -108,7 +107,7 @@ The models provided by `caribou_hi` are implemented in the [`bayes_spec`](https:
 
 ## `EmissionAbsorptionModel`
 
-Finally, `EmissionAbsorptionModel` predicts both 21-cm emission (brightness temperature) and optical depth spectra assuming that both observations trace the same gas. The `SpecData` keys must be `emission` and `absorption`. The following diagram demonstrates the model, and the subsequent table describe the additional model parameters.
+`EmissionAbsorptionModel` predicts both 21-cm emission (brightness temperature) and optical depth spectra assuming that both observations trace the same gas. The `SpecData` keys must be `emission` and `absorption`. The following diagram demonstrates the model, and the subsequent table describe the additional model parameters.
 
 ![emission absorption model graph](docs/source/notebooks/emission_absorption_model.png)
 
@@ -126,6 +125,14 @@ Finally, `EmissionAbsorptionModel` predicts both 21-cm emission (brightness temp
 | :---------------------------- | :------------------------------- | :---- | :------------------------------------------------------- | :---------------------------- |
 | `rms_emission`                | Emission spectrum rms noise      | `K`   | ${\rm rms}_{T} \sim {\rm HalfNormal}(\sigma=p)$          | `1.0`                         |
 | `rms_absorption`              | Optical depth spectrum rms noise | `K`   | ${\rm rms}_{\tau} \sim {\rm HalfNormal}(\sigma=p)$       | `0.01`                        |
+
+## `EmissionAbsorptionFFModel`
+
+Finally, `EmissionAbsorptionFFModel` is like `EmissionAbsorptionModel`, except it allows for the possibility of beam dilution in the emission spectrum. That is, the expected brightness temperature contribution from a cloud is modified by a parameter, `filling_factor`, which takes values between zero and one.
+
+| Cloud Parameter<br>`variable` | Parameter      | Units | Prior, where<br>($p_0, p_1, \dots$) = `prior_{variable}` | Default<br>`prior_{variable}` |
+| :---------------------------- | :------------- | :---- | :------------------------------------------------------- | :---------------------------- |
+| `filling_factor`              | Filling Factor | ``    | $f \sim 1.0 - {\rm Beta}(\alpha=1.0, \beta=2.0)$         | ``                            |
 
 ## `ordered`
 

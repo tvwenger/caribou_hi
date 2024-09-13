@@ -1,6 +1,6 @@
 """
-emission_model.py
-EmissionModel definition
+emission_absorption_ff_model.py
+EmissionAbsorptionFFModel definition
 
 Copyright(C) 2024 by
 Trey V. Wenger; tvwenger@gmail.com
@@ -28,11 +28,11 @@ from caribou_hi.hi_model import HIModel
 from caribou_hi import physics
 
 
-class EmissionModel(HIModel):
-    """Definition of the EmissionModel model. SpecData keys must be "emission"."""
+class EmissionAbsorptionFFModel(HIModel):
+    """Definition of the EmissionAbsorptionFFModel model. SpecData keys must be "emission" and "absorption"."""
 
     def __init__(self, *args, bg_temp: float = 2.7, **kwargs):
-        """Initialize a new EmissionModel instance
+        """Initialize a new EmissionAbsorptionFFModel instance
 
         Parameters
         ----------
@@ -48,11 +48,13 @@ class EmissionModel(HIModel):
         # Define TeX representation of each parameter
         self.var_name_map.update(
             {
+                "filling_factor": r"f",
                 "rms_emission": r"rms$_T$ (K)",
+                "rms_absorption": r"rms$_\tau$",
             }
         )
 
-    def add_priors(self, *args, prior_rms_emission: float = 1.0, **kwargs):
+    def add_priors(self, *args, prior_rms_emission: float = 1.0, prior_rms_absorption: float = 0.01, **kwargs):
         """Add priors and deterministics to the model
 
         Parameters
@@ -60,18 +62,36 @@ class EmissionModel(HIModel):
         prior_rms_emission : float, optional
             Prior distribution on emission rms (K), by default 1.0, where
             rms_emission ~ HalfNormal(sigma=prior)
+        prior_rms_absorption : float, optional
+            Prior distribution on optical depth rms, by default 0.01, where
+            rms_absorption ~ HalfNormal(sigma=prior)
         """
         super().add_priors(*args, **kwargs)
 
         with self.model:
+            # Filling factor
+            filling_factor_norm = pm.Beta("filling_factor_norm", alpha=1.0, beta=2.0, dims="cloud")
+            _ = pm.Deterministic("filling_factor", 1.0 - filling_factor_norm, dims="cloud")
+
             # Spectral rms (K)
             rms_emission_norm = pm.HalfNormal("rms_emission_norm", sigma=1.0)
             _ = pm.Deterministic("rms_emission", rms_emission_norm * prior_rms_emission)
 
+            # Optical depth rms
+            rms_absorption_norm = pm.HalfNormal("rms_absorption_norm", sigma=1.0)
+            _ = pm.Deterministic("rms_absorption", rms_absorption_norm * prior_rms_absorption)
+
     def add_likelihood(self):
         """Add likelihood to the model. SpecData key must be "emission"."""
         # Predict optical depth spectrum (shape: spectral, clouds)
-        optical_depth = physics.calc_optical_depth(
+        absorption_optical_depth = physics.calc_optical_depth(
+            self.data["absorption"].spectral,
+            self.model["velocity"],
+            10.0 ** self.model["log10_NHI"],
+            self.model["tspin"],
+            self.model["fwhm"],
+        )
+        emission_optical_depth = physics.calc_optical_depth(
             self.data["emission"].spectral,
             self.model["velocity"],
             10.0 ** self.model["log10_NHI"],
@@ -79,19 +99,30 @@ class EmissionModel(HIModel):
             self.model["fwhm"],
         )
 
-        # Evaluate radiative transfer
-        filling_factor = 1.0
-        predicted_line = physics.radiative_transfer(optical_depth, self.model["tspin"], filling_factor, self.bg_temp)
+        # Sum over clouds
+        predicted_absorption = absorption_optical_depth.sum(axis=1)
 
-        # Add baseline model
+        # Evaluate radiative transfer
+        predicted_emission = physics.radiative_transfer(
+            emission_optical_depth, self.model["tspin"], self.model["filling_factor"], self.bg_temp
+        )
+
+        # Add baseline models
         baseline_models = self.predict_baseline()
-        predicted = predicted_line + baseline_models["emission"]
+        predicted_absorption = predicted_absorption + baseline_models["absorption"]
+        predicted_emission = predicted_emission + baseline_models["emission"]
 
         with self.model:
             # Evaluate likelihood
             _ = pm.Normal(
+                "absorption",
+                mu=predicted_absorption,
+                sigma=self.model["rms_absorption"],
+                observed=self.data["absorption"].brightness,
+            )
+            _ = pm.Normal(
                 "emission",
-                mu=predicted,
+                mu=predicted_emission,
                 sigma=self.model["rms_emission"],
                 observed=self.data["emission"].brightness,
             )

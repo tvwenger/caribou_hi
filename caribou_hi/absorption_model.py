@@ -36,6 +36,13 @@ class AbsorptionModel(HIModel):
         # Initialize HIModel
         super().__init__(*args, **kwargs)
 
+        # Define TeX representation of each parameter
+        self.var_name_map.update(
+            {
+                "rms_absorption": r"rms$_\tau$",
+            }
+        )
+
     def add_priors(self, *args, prior_rms_absorption: float = 0.01, **kwargs):
         """Add priors and deterministics to the model
 
