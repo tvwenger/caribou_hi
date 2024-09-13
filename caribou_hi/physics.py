@@ -219,11 +219,11 @@ def radiative_transfer(
     Parameters
     ----------
     tau : Iterable[float]
-        Optical depth spectra (shape S x N)
+        Optical depth spectra (shape S x ... x N)
     tspin : Iterable[float]
-        Spin temperatures (K) (length N)
+        Spin temperatures (K) (shape ... x N)
     filling_factor : Iterable[float]
-        Filling factor (between zero and one) (length N)
+        Filling factor (between zero and one) (shape ... x N)
     bg_temp : float
         Assumed background temperature
 
@@ -232,15 +232,15 @@ def radiative_transfer(
     Iterable[float]
         Predicted emission brightness temperature spectrum (K) (length S)
     """
-    front_tau = pt.zeros_like(tau[:, 0:1])
+    front_tau = pt.zeros_like(tau[..., 0:1])
     # cumulative optical depth through clouds
-    sum_tau = pt.concatenate([front_tau, pt.cumsum(tau, axis=1)], axis=1)
+    sum_tau = pt.concatenate([front_tau, pt.cumsum(tau, axis=-1)], axis=-1)
 
     # radiative transfer, assuming filling factor = 1.0
-    emission_bg_attenuated = bg_temp * pt.exp(-sum_tau[:, -1])
+    emission_bg_attenuated = bg_temp * pt.exp(-sum_tau[..., -1])
     emission_clouds = filling_factor * tspin * (1.0 - pt.exp(-tau))
-    emission_clouds_attenuated = emission_clouds * pt.exp(-sum_tau[:, :-1])
-    emission = emission_bg_attenuated + emission_clouds_attenuated.sum(axis=1)
+    emission_clouds_attenuated = emission_clouds * pt.exp(-sum_tau[..., :-1])
+    emission = emission_bg_attenuated + emission_clouds_attenuated.sum(axis=-1)
 
     # ON - OFF
     return emission - bg_temp
