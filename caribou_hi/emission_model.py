@@ -45,6 +45,13 @@ class EmissionModel(HIModel):
         # Save inputs
         self.bg_temp = bg_temp
 
+        # Define TeX representation of each parameter
+        self.var_name_map.update(
+            {
+                "rms_emission": r"rms$_T$ (K)",
+            }
+        )
+
     def add_priors(self, *args, prior_rms_emission: float = 1.0, **kwargs):
         """Add priors and deterministics to the model
 
@@ -73,7 +80,8 @@ class EmissionModel(HIModel):
         )
 
         # Evaluate radiative transfer
-        predicted_line = physics.radiative_transfer(optical_depth, self.model["tspin"], self.bg_temp)
+        filling_factor = 1.0
+        predicted_line = physics.radiative_transfer(optical_depth, self.model["tspin"], filling_factor, self.bg_temp)
 
         # Add baseline model
         baseline_models = self.predict_baseline()

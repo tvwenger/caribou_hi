@@ -45,6 +45,14 @@ class EmissionAbsorptionModel(HIModel):
         # Save inputs
         self.bg_temp = bg_temp
 
+        # Define TeX representation of each parameter
+        self.var_name_map.update(
+            {
+                "rms_emission": r"rms$_T$ (K)",
+                "rms_absorption": r"rms$_\tau$",
+            }
+        )
+
     def add_priors(self, *args, prior_rms_emission: float = 1.0, prior_rms_absorption: float = 0.01, **kwargs):
         """Add priors and deterministics to the model
 
@@ -90,7 +98,10 @@ class EmissionAbsorptionModel(HIModel):
         predicted_absorption = absorption_optical_depth.sum(axis=1)
 
         # Evaluate radiative transfer
-        predicted_emission = physics.radiative_transfer(emission_optical_depth, self.model["tspin"], self.bg_temp)
+        filling_factor = 1.0
+        predicted_emission = physics.radiative_transfer(
+            emission_optical_depth, self.model["tspin"], filling_factor, self.bg_temp
+        )
 
         # Add baseline models
         baseline_models = self.predict_baseline()

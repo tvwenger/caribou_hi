@@ -45,6 +45,15 @@ class EmissionAbsorptionFFModel(HIModel):
         # Save inputs
         self.bg_temp = bg_temp
 
+        # Define TeX representation of each parameter
+        self.var_name_map.update(
+            {
+                "filling_factor": r"f",
+                "rms_emission": r"rms$_T$ (K)",
+                "rms_absorption": r"rms$_\tau$",
+            }
+        )
+
     def add_priors(self, *args, prior_rms_emission: float = 1.0, prior_rms_absorption: float = 0.01, **kwargs):
         """Add priors and deterministics to the model
 
