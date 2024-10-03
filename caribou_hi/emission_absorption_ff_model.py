@@ -31,13 +31,13 @@ from caribou_hi import physics
 class EmissionAbsorptionFFModel(HIModel):
     """Definition of the EmissionAbsorptionFFModel model. SpecData keys must be "emission" and "absorption"."""
 
-    def __init__(self, *args, bg_temp: float = 2.7, **kwargs):
+    def __init__(self, *args, bg_temp: float = 3.77, **kwargs):
         """Initialize a new EmissionAbsorptionFFModel instance
 
         Parameters
         ----------
         bg_temp : float, optional
-            Assumed background temperature (K), by default 2.7
+            Assumed background temperature (K), by default 3.77
         """
         # Initialize HIModel
         super().__init__(*args, **kwargs)
@@ -70,8 +70,7 @@ class EmissionAbsorptionFFModel(HIModel):
 
         with self.model:
             # Filling factor
-            filling_factor_norm = pm.Beta("filling_factor_norm", alpha=1.0, beta=2.0, dims="cloud")
-            _ = pm.Deterministic("filling_factor", 1.0 - filling_factor_norm, dims="cloud")
+            _ = pm.Beta("filling_factor", alpha=2.0, beta=1.0, dims="cloud")
 
             # Spectral rms (K)
             rms_emission_norm = pm.HalfNormal("rms_emission_norm", sigma=1.0)
