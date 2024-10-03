@@ -31,13 +31,13 @@ from caribou_hi import physics
 class EmissionModel(HIModel):
     """Definition of the EmissionModel model. SpecData keys must be "emission"."""
 
-    def __init__(self, *args, bg_temp: float = 2.7, **kwargs):
+    def __init__(self, *args, bg_temp: float = 3.77, **kwargs):
         """Initialize a new EmissionModel instance
 
         Parameters
         ----------
         bg_temp : float, optional
-            Assumed background temperature (K), by default 2.7
+            Assumed background temperature (K), by default 3.77
         """
         # Initialize HIModel
         super().__init__(*args, **kwargs)
