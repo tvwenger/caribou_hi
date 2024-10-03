@@ -101,25 +101,6 @@ def calc_thermal_fwhm(kinetic_temp: float) -> float:
     return const * pt.sqrt(kinetic_temp)
 
 
-def calc_depth(NHI: float, nHI: float) -> float:
-    """Calculate the line-of-sight depth assuming a homogenous medium.
-
-    Parameters
-    ----------
-    NHI : float
-        HI column density (cm-2)
-    nHI : float
-        HI density (cm-3)
-
-    Returns
-    -------
-    float
-        Line-of-sight depth (pc)
-    """
-    CM_PER_PC = 3.085677581491367e18
-    return NHI / nHI / CM_PER_PC
-
-
 def calc_nonthermal_fwhm(depth: float, larson_linewidth: float, larson_power: float) -> float:
     """Calculate the non-thermal line broadening assuming a Larson law relationship
 
