@@ -22,7 +22,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 import pymc as pm
-
+import pytensor.tensor as pt
 
 from caribou_hi.hi_model import HIModel
 from caribou_hi import physics
@@ -95,7 +95,7 @@ class EmissionAbsorptionModel(HIModel):
         )
 
         # Sum over clouds
-        predicted_absorption = absorption_optical_depth.sum(axis=1)
+        predicted_absorption = 1.0 - pt.exp(-absorption_optical_depth.sum(axis=1))
 
         # Evaluate radiative transfer
         filling_factor = 1.0

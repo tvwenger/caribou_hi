@@ -22,7 +22,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 import pymc as pm
-
+import pytensor.tensor as pt
 
 from caribou_hi.hi_model import HIModel
 from caribou_hi import physics
@@ -70,7 +70,8 @@ class EmissionAbsorptionFFModel(HIModel):
 
         with self.model:
             # Filling factor
-            _ = pm.Beta("filling_factor", alpha=2.0, beta=1.0, dims="cloud")
+            # _ = pm.Beta("filling_factor", alpha=2.0, beta=1.0, dims="cloud")
+            _ = pm.Uniform("filling_factor", lower=0.0, upper=1.0, dims="cloud")
 
             # Spectral rms (K)
             rms_emission_norm = pm.HalfNormal("rms_emission_norm", sigma=1.0)
@@ -99,7 +100,7 @@ class EmissionAbsorptionFFModel(HIModel):
         )
 
         # Sum over clouds
-        predicted_absorption = absorption_optical_depth.sum(axis=1)
+        predicted_absorption = 1.0 - pt.exp(-absorption_optical_depth.sum(axis=1))
 
         # Evaluate radiative transfer
         predicted_emission = physics.radiative_transfer(
