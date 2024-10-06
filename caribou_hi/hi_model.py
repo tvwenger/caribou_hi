@@ -43,7 +43,6 @@ class HIModel(BaseModel):
         # Select features used for posterior clustering
         self._cluster_features += [
             "log10_NHI",
-            "log10_nHI",
             "log10_tkin",
             "velocity",
         ]
@@ -52,15 +51,17 @@ class HIModel(BaseModel):
         self.var_name_map.update(
             {
                 "log10_NHI": r"log$_{10}$ $N_{\rm HI}$ (cm$^{-2}$)",
-                "log10_nHI": r"log$_{10}$ $n_{\rm HI}$ (cm$^{-3}$)",
-                "log10_tkin": r"log$_{10}$ $T_K$ (K)",
+                "log10_depth": r"log$_{10}$ $d$ (pc)",
+                "log10_pressure": r"log$_{10}$ $P_{\rm th}/k_B$ (K cm$^{-3}$)",
+                "velocity": r"$V_{\rm LSR}$ (km s$^{-1}$)",
                 "log10_n_alpha": r"log$_{10}$ $n_\alpha$ (cm$^{-3}$)",
                 "log10_larson_linewidth": r"log$_{10}$ $\Delta V_{\rm 1 pc}$ (km s$^{-1}$)",
                 "larson_power": r"$\alpha$",
-                "velocity": r"$V_{\rm LSR}$ (km s$^{-1}$)",
+                "log10_nHI": r"log$_{10}$ $n_{\rm HI}$ (cm$^{-3}$)",
+                "log10_tkin": r"log$_{10}$ $T_K$ (K)",
                 "tspin": r"$T_S$ (K)",
-                "fwhm_thermal": r"$\Delta V_{\rm th}$ (km s$^{-1}$)",
                 "depth": r"$d$ (pc)",
+                "fwhm_thermal": r"$\Delta V_{\rm th}$ (km s$^{-1}$)",
                 "fwhm_nonthermal": r"$\Delta V_{\rm nth}$ (km s$^{-1}$)",
                 "fwhm": r"$\Delta V$ (km s$^{-1}$)",
             }
@@ -69,12 +70,12 @@ class HIModel(BaseModel):
     def add_priors(
         self,
         prior_log10_NHI: Iterable[float] = [20.0, 1.0],
-        prior_log10_nHI: Iterable[float] = [0.0, 1.0],
-        prior_log10_tkin: Iterable[float] = [3.0, 1.0],
+        prior_log10_depth: Iterable[float] = [1.0, 1.0],
+        prior_log10_pressure: Iterable[float] = [3.0, 1.0],
+        prior_velocity: Iterable[float] = [0.0, 10.0],
         prior_log10_n_alpha: Iterable[float] = [-6.0, 1.0],
         prior_log10_larson_linewidth: Iterable[float] = [0.2, 0.1],
         prior_larson_power: Iterable[float] = [0.4, 0.1],
-        prior_velocity: Iterable[float] = [0.0, 10.0],
         prior_baseline_coeffs: Optional[dict[str, Iterable[float]]] = None,
         ordered: bool = False,
     ):
@@ -85,12 +86,15 @@ class HIModel(BaseModel):
         prior_log10_NHI : Iterable[float], optional
             Prior distribution on log10 HI column density (cm-2), by default [20.0, 1.0], where
             log10_NHI ~ Normal(mu=prior[0], sigma=prior[1])
-        prior_log10_nHI : Iterable[float], optional
-            Prior distribution on log10 HI volume density (cm-3), by default [0.0, 1.0], where
-            log10_nHI ~ Normal(mu=prior[0], sigma=prior[1])
-        prior_log10_tkin : Iterable[float], optional
-            Prior distribution on log10 kinetic temperature (K), by default [3.0, 1.0], where
-            log10_tkin ~ Normal(mu=prior[0], sigma=prior[1])
+        prior_log10_depth : Iterable[float], optional
+            Prior distribution on log10 depth (pc), by default [1.0, 1.0], where
+            log10_depth ~ Normal(mu=prior[0], sigma=prior[1])
+        prior_log10_pressure : Iterable[float], optional
+            Prior distribution on log10 pressure/k_B (K cm-3), by default [3.0, 1.0], where
+            log10_pressure ~ Normal(mu=prior[0], sigma=prior[1])
+        prior_velocity : Iterable[float], optional
+            Prior distribution on centroid velocity (km s-1), by default [0.0, 10.0], where
+            velocity ~ Normal(mu=prior[0], sigma=prior[1])
         prior_log10_n_alpha : Iterable[float], optional
             Prior distribution on log10 n_alpha (cm-3), by default [-6.0, 1.0], where
             n_alpha ~ Normal(mu=prior[0], sigma=prior[1])
@@ -100,9 +104,6 @@ class HIModel(BaseModel):
         prior_larson_power : Iterable[float], optional
             Prior distribution on larson_power, by default [0.4, 0.1], where
             larson_power ~ Normal(mu=prior[0], sigma=prior[1])
-        prior_velocity : Iterable[float], optional
-            Prior distribution on centroid velocity (km s-1), by default [0.0, 10.0], where
-            velocity ~ Normal(mu=prior[0], sigma=prior[1])
         prior_baseline_coeffs : Optional[dict[str, Iterable[float]]], optional
             Width of normal prior distribution on the normalized baseline polynomial coefficients.
             Keys are dataset names and values are lists of length `baseline_degree+1`. If None, use
@@ -124,43 +125,19 @@ class HIModel(BaseModel):
                 dims="cloud",
             )
 
-            # HI volume density (cm-3; shape: clouds)
-            log10_nHI_norm = pm.Normal("log10_nHI_norm", mu=0.0, sigma=1.0, dims="cloud")
-            log10_nHI = pm.Deterministic(
-                "log10_nHI",
-                prior_log10_nHI[0] + prior_log10_nHI[1] * log10_nHI_norm,
+            # depth (pc; shape: clouds)
+            log10_depth_norm = pm.Normal("log10_depth_norm", mu=0.0, sigma=1.0, dims="cloud")
+            log10_depth = pm.Deterministic(
+                "log10_depth",
+                prior_log10_depth[0] + prior_log10_depth[1] * log10_depth_norm,
                 dims="cloud",
             )
 
-            # kinetic temperature temperature (K; shape: clouds)
-            log10_tkin_norm = pm.Normal("log10_tkin_norm", mu=0.0, sigma=1.0, dims="cloud")
-            log10_tkin = pm.Deterministic(
-                "log10_tkin",
-                prior_log10_tkin[0] + prior_log10_tkin[1] * log10_tkin_norm,
-                dims="cloud",
-            )
-
-            # Lyman-alpha photon density (cm-3; shape: clouds)
-            log10_n_alpha_norm = pm.Normal("log10_n_alpha_norm", mu=0.0, sigma=1.0, dims="cloud")
-            log10_n_alpha = pm.Deterministic(
-                "log10_n_alpha",
-                prior_log10_n_alpha[0] + prior_log10_n_alpha[1] * log10_n_alpha_norm,
-                dims="cloud",
-            )
-
-            # Larson linewidth (km s-1; shape: clouds)
-            log10_larson_linewidth_norm = pm.Normal("log10_larson_linewidth_norm", mu=0.0, sigma=1.0, dims="cloud")
-            log10_larson_linewidth = pm.Deterministic(
-                "log10_larson_linewidth",
-                prior_log10_larson_linewidth[0] + prior_log10_larson_linewidth[1] * log10_larson_linewidth_norm,
-                dims="cloud",
-            )
-
-            # Larson power (shape: clouds)
-            larson_power_norm = pm.Normal("larson_power_norm", mu=0.0, sigma=1.0, dims="cloud")
-            larson_power = pm.Deterministic(
-                "larson_power",
-                prior_larson_power[0] + prior_larson_power[1] * larson_power_norm,
+            # pressure (K cm-3; shape: clouds)
+            log10_pressure_norm = pm.Normal("log10_pressure_norm", mu=0.0, sigma=1.0, dims="cloud")
+            log10_pressure = pm.Deterministic(
+                "log10_pressure",
+                prior_log10_pressure[0] + prior_log10_pressure[1] * log10_pressure_norm,
                 dims="cloud",
             )
 
@@ -186,6 +163,33 @@ class HIModel(BaseModel):
                     dims="cloud",
                 )
 
+            # Lyman-alpha photon density (cm-3)
+            log10_n_alpha_norm = pm.Normal("log10_n_alpha_norm", mu=0.0, sigma=1.0)
+            log10_n_alpha = pm.Deterministic(
+                "log10_n_alpha",
+                prior_log10_n_alpha[0] + prior_log10_n_alpha[1] * log10_n_alpha_norm,
+            )
+
+            # Larson linewidth (km s-1; shape: clouds)
+            log10_larson_linewidth_norm = pm.Normal("log10_larson_linewidth_norm", mu=0.0, sigma=1.0)
+            log10_larson_linewidth = pm.Deterministic(
+                "log10_larson_linewidth",
+                prior_log10_larson_linewidth[0] + prior_log10_larson_linewidth[1] * log10_larson_linewidth_norm,
+            )
+
+            # Larson power (shape: clouds)
+            larson_power_norm = pm.Normal("larson_power_norm", mu=0.0, sigma=1.0)
+            larson_power = pm.Deterministic(
+                "larson_power",
+                prior_larson_power[0] + prior_larson_power[1] * larson_power_norm,
+            )
+
+            # Volume density (cm-3; shape: clouds)
+            log10_nHI = pm.Deterministic("log10_nHI", log10_NHI - log10_depth - 18.48935, dims="cloud")
+
+            # Kinetic temperature (K; shape: clouds)
+            log10_tkin = pm.Deterministic("log10_tkin", log10_pressure - log10_nHI - pt.log10(1.1), dims="cloud")
+
             # Spin temperature (K; shape: clouds)
             _ = pm.Deterministic(
                 "tspin", physics.calc_spin_temp(10.0**log10_tkin, 10.0**log10_nHI, 10.0**log10_n_alpha), dims="cloud"
@@ -194,13 +198,10 @@ class HIModel(BaseModel):
             # Thermal line width (km/s; shape: clouds)
             fwhm_thermal = pm.Deterministic("fwhm_thermal", physics.calc_thermal_fwhm(10.0**log10_tkin), dims="cloud")
 
-            # Line-of-sight depth (pc; shape: clouds)
-            depth = pm.Deterministic("depth", physics.calc_depth(10.0**log10_NHI, 10.0**log10_nHI), dims="cloud")
-
             # Non-thermal line width (km/s; shape: clouds)
             fwhm_nonthermal = pm.Deterministic(
                 "fwhm_nonthermal",
-                physics.calc_nonthermal_fwhm(depth, 10.0 * log10_larson_linewidth, larson_power),
+                physics.calc_nonthermal_fwhm(10.0**log10_depth, 10.0**log10_larson_linewidth, larson_power),
                 dims="cloud",
             )
 

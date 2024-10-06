@@ -22,7 +22,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 import pymc as pm
-
+import pytensor.tensor as pt
 
 from caribou_hi.hi_model import HIModel
 from caribou_hi import physics
@@ -49,36 +49,16 @@ class EmissionAbsorptionFFModel(HIModel):
         self.var_name_map.update(
             {
                 "filling_factor": r"f",
-                "rms_emission": r"rms$_T$ (K)",
-                "rms_absorption": r"rms$_\tau$",
             }
         )
 
-    def add_priors(self, *args, prior_rms_emission: float = 1.0, prior_rms_absorption: float = 0.01, **kwargs):
-        """Add priors and deterministics to the model
-
-        Parameters
-        ----------
-        prior_rms_emission : float, optional
-            Prior distribution on emission rms (K), by default 1.0, where
-            rms_emission ~ HalfNormal(sigma=prior)
-        prior_rms_absorption : float, optional
-            Prior distribution on optical depth rms, by default 0.01, where
-            rms_absorption ~ HalfNormal(sigma=prior)
-        """
+    def add_priors(self, *args, **kwargs):
+        """Add priors and deterministics to the model"""
         super().add_priors(*args, **kwargs)
 
         with self.model:
             # Filling factor
-            _ = pm.Beta("filling_factor", alpha=2.0, beta=1.0, dims="cloud")
-
-            # Spectral rms (K)
-            rms_emission_norm = pm.HalfNormal("rms_emission_norm", sigma=1.0)
-            _ = pm.Deterministic("rms_emission", rms_emission_norm * prior_rms_emission)
-
-            # Optical depth rms
-            rms_absorption_norm = pm.HalfNormal("rms_absorption_norm", sigma=1.0)
-            _ = pm.Deterministic("rms_absorption", rms_absorption_norm * prior_rms_absorption)
+            _ = pm.Uniform("filling_factor", lower=0.0, upper=1.0, dims="cloud")
 
     def add_likelihood(self):
         """Add likelihood to the model. SpecData key must be "emission"."""
@@ -99,7 +79,7 @@ class EmissionAbsorptionFFModel(HIModel):
         )
 
         # Sum over clouds
-        predicted_absorption = absorption_optical_depth.sum(axis=1)
+        predicted_absorption = 1.0 - pt.exp(-absorption_optical_depth.sum(axis=1))
 
         # Evaluate radiative transfer
         predicted_emission = physics.radiative_transfer(
@@ -116,12 +96,12 @@ class EmissionAbsorptionFFModel(HIModel):
             _ = pm.Normal(
                 "absorption",
                 mu=predicted_absorption,
-                sigma=self.model["rms_absorption"],
+                sigma=self.data["absorption"].noise,
                 observed=self.data["absorption"].brightness,
             )
             _ = pm.Normal(
                 "emission",
                 mu=predicted_emission,
-                sigma=self.model["rms_emission"],
+                sigma=self.data["emission"].noise,
                 observed=self.data["emission"].brightness,
             )

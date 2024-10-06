@@ -22,7 +22,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 import pymc as pm
-
+import pytensor.tensor as pt
 
 from caribou_hi.hi_model import HIModel
 from caribou_hi import physics
@@ -71,7 +71,7 @@ class AbsorptionModel(HIModel):
         )
 
         # Sum over clouds
-        predicted_line = optical_depth.sum(axis=1)
+        predicted_line = 1.0 - pt.exp(-optical_depth.sum(axis=1))
 
         # Add baseline model
         baseline_models = self.predict_baseline()

@@ -58,7 +58,6 @@ Clouds are assumed to be homogenous and isothermal. The ratio of the column dens
 
 The optical depth and radiative transfer prescriptions follow that of [Marchal et al. (2019)](https://ui.adsabs.harvard.edu/abs/2019A%26A...626A.101M/abstract). By default, the clouds are ordered from *nearest* to *farthest*, so optical depth effects (i.e., self-absorption) may be present.
 
-
 Notably, since these are *forward models*, we do not make assumptions regarding the optical depth. These effects are *predicted* by the model. There is one exception: the `ordered` argument, [described below](#ordered).
 
 # Models
@@ -71,39 +70,39 @@ The models provided by `caribou_hi` are implemented in the [`bayes_spec`](https:
 
 ![emission model graph](docs/source/notebooks/emission_model.png)
 
-| Cloud Parameter<br>`variable` | Parameter                                 | Units    | Prior, where<br>($p_0, p_1, \dots$) = `prior_{variable}`              | Default<br>`prior_{variable}` |
+| Cloud Parameter<br>`variable` | Parameter                               | Units    | Prior, where<br>($p_0, p_1, \dots$) = `prior_{variable}`     | Default<br>`prior_{variable}` |
+| :---------------------------- | :-------------------------------------- | :------- | :----------------------------------------------------------- | :---------------------------- |
+| `log10_NHI`                   | log10 HI column density                 | `cm-2`   | $\log_{10}N_{\rm HI} \sim {\rm Normal}(\mu=p_0, \sigma=p_1)$ | `[20.0, 1.0]`                 |
+| `log10_depth`                 | log10 line-of-sight depth               | `pc`     | $\log_{10}d \sim {\rm Normal}(\mu=p_0, \sigma=p_1)$          | `[1.0, 1.0]`                  |
+| `log10_pressure`              | log10 pressure                          | `K cm-3` | $\log_{10}P_{\rm th} \sim {\rm Normal}(\mu=p_0, \sigma=p_1)$ | `[3.0, 1.0]`                  |
+| `velocity`                    | Velocity (same reference frame as data) | `km s-1` | $V \sim {\rm Normal}(\mu=p_0, \sigma=p_1)$                   | `[0.0, 10.0]`                 |
+
+| Hyper Parameter<br>`variable` | Parameter                                 | Units    | Prior, where<br>($p_0, p_1, \dots$) = `prior_{variable}`              | Default<br>`prior_{variable}` |
 | :---------------------------- | :---------------------------------------- | :------- | :-------------------------------------------------------------------- | :---------------------------- |
-| `log10_NHI`                   | log10 HI column density                   | `cm-2`   | $\log_{10}N_{\rm HI} \sim {\rm Normal}(\mu=p_0, \sigma=p_1)$          | `[20.0, 1.0]`                 |
-| `log10_nHI`                   | log10 HI density                          | `cm-3`   | $\log_{10}n \sim {\rm Normal}(\mu=p_0, \sigma=p_1)$                   | `[0.0, 1.0]`                  |
-| `log10_tkin`                  | log10 kinetic temperature                 | `K`      | $\log_{10}T_K \sim {\rm Normal}(\mu=p_0, \sigma=p_1)$                 | `[3.0, 1.0]`                  |
 | `log10_n_alpha`               | log10 Ly&alpha; photon density            | `cm-3`   | $\log_{10}n_\alpha \sim {\rm Normal}(\mu=p_0, \sigma=p_1)$            | `[-6.0, 1.0]`                 |
 | `log10_larson_linewidth`      | Non-thermal broadening FWHM at 1 pc       | `km s-1` | $\log_{10}\Delta V_{\rm 1 pc} \sim {\rm Normal}(\mu=p_0, \sigma=p_1)$ | `[0.2, 0.1]`                  |
 | `larson_power`                | Nonthermal size-linewidth power law index | unitless | $\alpha \sim {\rm Normal}(\mu=p_0, \sigma=p_1)$                       | `[0.4, 0.1]`                  |
-| `velocity`                    | Velocity (same reference frame as data)   | `km s-1` | $V \sim {\rm Normal}(\mu=p_0, \sigma=p_1)$                            | `[0.0, 10.0]`                 |
-
-| Hyper Parameter<br>`variable` | Parameter                   | Units | Prior, where<br>($p_0, p_1, \dots$) = `prior_{variable}` | Default<br>`prior_{variable}` |
-| :---------------------------- | :-------------------------- | :---- | :------------------------------------------------------- | :---------------------------- |
-| `rms_emission`                | Emission spectrum rms noise | `K`   | ${\rm rms}_{T} \sim {\rm HalfNormal}(\sigma=p)$          | `1.0`                         |
+| `rms_emission`                | Emission spectrum rms noise               | `K`      | ${\rm rms}_{T} \sim {\rm HalfNormal}(\sigma=p)$                       | `1.0`                         |
 
 ## `AbsorptionModel`
 
-`AbsorptionModel` is otherwise identical to `EmissionModel`, except it predicts 21-cm optical depth spectra. The `SpecData` key for this model must be `absorption`. The following diagram demonstrates the model, and the subsequent table describe the additional model parameters.
+`AbsorptionModel` is otherwise identical to `EmissionModel`, except it predicts 21-cm optical depth spectra. The `SpecData` key for this model must be `absorption`, which contains the `1-exp(-tau)` spectral data. The following diagram demonstrates the model, and the subsequent table describe the additional model parameters.
 
 ![absorption model graph](docs/source/notebooks/absorption_model.png)
 
-| Cloud Parameter<br>`variable` | Parameter                                 | Units    | Prior, where<br>($p_0, p_1, \dots$) = `prior_{variable}`              | Default<br>`prior_{variable}` |
+| Cloud Parameter<br>`variable` | Parameter                               | Units    | Prior, where<br>($p_0, p_1, \dots$) = `prior_{variable}`     | Default<br>`prior_{variable}` |
+| :---------------------------- | :-------------------------------------- | :------- | :----------------------------------------------------------- | :---------------------------- |
+| `log10_NHI`                   | log10 HI column density                 | `cm-2`   | $\log_{10}N_{\rm HI} \sim {\rm Normal}(\mu=p_0, \sigma=p_1)$ | `[20.0, 1.0]`                 |
+| `log10_depth`                 | log10 line-of-sight depth               | `pc`     | $\log_{10}d \sim {\rm Normal}(\mu=p_0, \sigma=p_1)$          | `[1.0, 1.0]`                  |
+| `log10_pressure`              | log10 pressure                          | `K cm-3` | $\log_{10}P_{\rm th} \sim {\rm Normal}(\mu=p_0, \sigma=p_1)$ | `[3.0, 1.0]`                  |
+| `velocity`                    | Velocity (same reference frame as data) | `km s-1` | $V \sim {\rm Normal}(\mu=p_0, \sigma=p_1)$                   | `[0.0, 10.0]`                 |
+
+| Hyper Parameter<br>`variable` | Parameter                                 | Units    | Prior, where<br>($p_0, p_1, \dots$) = `prior_{variable}`              | Default<br>`prior_{variable}` |
 | :---------------------------- | :---------------------------------------- | :------- | :-------------------------------------------------------------------- | :---------------------------- |
-| `log10_NHI`                   | log10 HI column density                   | `cm-2`   | $\log_{10}N_{\rm HI} \sim {\rm Normal}(\mu=p_0, \sigma=p_1)$          | `[20.0, 1.0]`                 |
-| `log10_nHI`                   | log10 HI density                          | `cm-3`   | $\log_{10}n \sim {\rm Normal}(\mu=p_0, \sigma=p_1)$                   | `[0.0, 1.0]`                  |
-| `log10_tkin`                  | log10 kinetic temperature                 | `K`      | $\log_{10}T_K \sim {\rm Normal}(\mu=p_0, \sigma=p_1)$                 | `[3.0, 1.0]`                  |
 | `log10_n_alpha`               | log10 Ly&alpha; photon density            | `cm-3`   | $\log_{10}n_\alpha \sim {\rm Normal}(\mu=p_0, \sigma=p_1)$            | `[-6.0, 1.0]`                 |
 | `log10_larson_linewidth`      | Non-thermal broadening FWHM at 1 pc       | `km s-1` | $\log_{10}\Delta V_{\rm 1 pc} \sim {\rm Normal}(\mu=p_0, \sigma=p_1)$ | `[0.2, 0.1]`                  |
 | `larson_power`                | Nonthermal size-linewidth power law index | unitless | $\alpha \sim {\rm Normal}(\mu=p_0, \sigma=p_1)$                       | `[0.4, 0.1]`                  |
-| `velocity`                    | Velocity (same reference frame as data)   | `km s-1` | $V \sim {\rm Normal}(\mu=p_0, \sigma=p_1)$                            | `[0.0, 10.0]`                 |
-
-| Hyper Parameter<br>`variable` | Parameter                        | Units | Prior, where<br>($p_0, p_1, \dots$) = `prior_{variable}` | Default<br>`prior_{variable}` |
-| :---------------------------- | :------------------------------- | :---- | :------------------------------------------------------- | :---------------------------- |
-| `rms_absorption`              | Optical depth spectrum rms noise | `K`   | ${\rm rms}_{\tau} \sim {\rm HalfNormal}(\sigma=p)$       | `0.01`                        |
+| `rms_absorption`              | Optical depth spectrum rms noise          | `K`      | ${\rm rms}_{\tau} \sim {\rm HalfNormal}(\sigma=p)$                    | `0.01`                        |
 
 ## `EmissionAbsorptionModel`
 
@@ -111,20 +110,20 @@ The models provided by `caribou_hi` are implemented in the [`bayes_spec`](https:
 
 ![emission absorption model graph](docs/source/notebooks/emission_absorption_model.png)
 
-| Cloud Parameter<br>`variable` | Parameter                                 | Units    | Prior, where<br>($p_0, p_1, \dots$) = `prior_{variable}`              | Default<br>`prior_{variable}` |
+| Cloud Parameter<br>`variable` | Parameter                               | Units    | Prior, where<br>($p_0, p_1, \dots$) = `prior_{variable}`     | Default<br>`prior_{variable}` |
+| :---------------------------- | :-------------------------------------- | :------- | :----------------------------------------------------------- | :---------------------------- |
+| `log10_NHI`                   | log10 HI column density                 | `cm-2`   | $\log_{10}N_{\rm HI} \sim {\rm Normal}(\mu=p_0, \sigma=p_1)$ | `[20.0, 1.0]`                 |
+| `log10_depth`                 | log10 line-of-sight depth               | `pc`     | $\log_{10}d \sim {\rm Normal}(\mu=p_0, \sigma=p_1)$          | `[1.0, 1.0]`                  |
+| `log10_pressure`              | log10 pressure                          | `K cm-3` | $\log_{10}P_{\rm th} \sim {\rm Normal}(\mu=p_0, \sigma=p_1)$ | `[3.0, 1.0]`                  |
+| `velocity`                    | Velocity (same reference frame as data) | `km s-1` | $V \sim {\rm Normal}(\mu=p_0, \sigma=p_1)$                   | `[0.0, 10.0]`                 |
+
+| Hyper Parameter<br>`variable` | Parameter                                 | Units    | Prior, where<br>($p_0, p_1, \dots$) = `prior_{variable}`              | Default<br>`prior_{variable}` |
 | :---------------------------- | :---------------------------------------- | :------- | :-------------------------------------------------------------------- | :---------------------------- |
-| `log10_NHI`                   | log10 HI column density                   | `cm-2`   | $\log_{10}N_{\rm HI} \sim {\rm Normal}(\mu=p_0, \sigma=p_1)$          | `[20.0, 1.0]`                 |
-| `log10_nHI`                   | log10 HI density                          | `cm-3`   | $\log_{10}n \sim {\rm Normal}(\mu=p_0, \sigma=p_1)$                   | `[0.0, 1.0]`                  |
-| `log10_tkin`                  | log10 kinetic temperature                 | `K`      | $\log_{10}T_K \sim {\rm Normal}(\mu=p_0, \sigma=p_1)$                 | `[3.0, 1.0]`                  |
 | `log10_n_alpha`               | log10 Ly&alpha; photon density            | `cm-3`   | $\log_{10}n_\alpha \sim {\rm Normal}(\mu=p_0, \sigma=p_1)$            | `[-6.0, 1.0]`                 |
 | `log10_larson_linewidth`      | Non-thermal broadening FWHM at 1 pc       | `km s-1` | $\log_{10}\Delta V_{\rm 1 pc} \sim {\rm Normal}(\mu=p_0, \sigma=p_1)$ | `[0.2, 0.1]`                  |
 | `larson_power`                | Nonthermal size-linewidth power law index | unitless | $\alpha \sim {\rm Normal}(\mu=p_0, \sigma=p_1)$                       | `[0.4, 0.1]`                  |
-| `velocity`                    | Velocity (same reference frame as data)   | `km s-1` | $V \sim {\rm Normal}(\mu=p_0, \sigma=p_1)$                            | `[0.0, 10.0]`                 |
-
-| Hyper Parameter<br>`variable` | Parameter                        | Units | Prior, where<br>($p_0, p_1, \dots$) = `prior_{variable}` | Default<br>`prior_{variable}` |
-| :---------------------------- | :------------------------------- | :---- | :------------------------------------------------------- | :---------------------------- |
-| `rms_emission`                | Emission spectrum rms noise      | `K`   | ${\rm rms}_{T} \sim {\rm HalfNormal}(\sigma=p)$          | `1.0`                         |
-| `rms_absorption`              | Optical depth spectrum rms noise | `K`   | ${\rm rms}_{\tau} \sim {\rm HalfNormal}(\sigma=p)$       | `0.01`                        |
+| `rms_emission`                | Emission spectrum rms noise               | `K`      | ${\rm rms}_{T} \sim {\rm HalfNormal}(\sigma=p)$                       | `1.0`                         |
+| `rms_absorption`              | Optical depth spectrum rms noise          | `K`      | ${\rm rms}_{\tau} \sim {\rm HalfNormal}(\sigma=p)$                    | `0.01`                        |
 
 ## `EmissionAbsorptionFFModel`
 
@@ -132,7 +131,7 @@ Finally, `EmissionAbsorptionFFModel` is like `EmissionAbsorptionModel`, except i
 
 | Cloud Parameter<br>`variable` | Parameter      | Units | Prior, where<br>($p_0, p_1, \dots$) = `prior_{variable}` | Default<br>`prior_{variable}` |
 | :---------------------------- | :------------- | :---- | :------------------------------------------------------- | :---------------------------- |
-| `filling_factor`              | Filling Factor | ``    | $f \sim 1.0 - {\rm Beta}(\alpha=1.0, \beta=2.0)$         | ``                            |
+| `filling_factor`              | Filling Factor | ``    | $f \sim {\rm Uniform}(0, 1)$               | ``                            |
 
 ## `ordered`
 
