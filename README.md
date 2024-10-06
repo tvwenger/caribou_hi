@@ -131,7 +131,7 @@ Finally, `EmissionAbsorptionFFModel` is like `EmissionAbsorptionModel`, except i
 
 | Cloud Parameter<br>`variable` | Parameter      | Units | Prior, where<br>($p_0, p_1, \dots$) = `prior_{variable}` | Default<br>`prior_{variable}` |
 | :---------------------------- | :------------- | :---- | :------------------------------------------------------- | :---------------------------- |
-| `filling_factor`              | Filling Factor | ``    | $f \sim {\rm Beta}(\alpha=2.0, \beta=1.0)$               | ``                            |
+| `filling_factor`              | Filling Factor | ``    | $f \sim {\rm Uniform}(0, 1)$               | ``                            |
 
 ## `ordered`
 
