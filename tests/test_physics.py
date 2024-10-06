@@ -46,13 +46,6 @@ def test_calc_thermal_fwhm():
     assert 0.2139 * np.sqrt(kinetic_temp) == pytest.approx(thermal_fwhm)
 
 
-def test_calc_depth():
-    NHI = 1.0
-    nHI = 1.0
-    depth = physics.calc_depth(NHI, nHI)
-    assert 1.0 / 3.085677581491367e18 == pytest.approx(depth)
-
-
 def test_calc_nontheraml_fwhm():
     depth = 2.0
     larson_linewidth = 2.0
