@@ -21,7 +21,8 @@ Installation
    notebooks/emission_model
    notebooks/absorption_model
    notebooks/emission_absorption_model
-   notebooks/emission_absorption_ff_model
+   notebooks/emission_absorption_matched_model
+   notebooks/emission_absorption_mismatched_model
    notebooks/optimization
 
 .. toctree::

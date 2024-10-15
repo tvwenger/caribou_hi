@@ -19,7 +19,8 @@ Read below to get started, and check out the tutorials and guides here: https://
   - [`EmissionModel`](#emissionmodel)
   - [`AbsorptionModel`](#absorptionmodel)
   - [`EmissionAbsorptionModel`](#emissionabsorptionmodel)
-  - [`EmissionAbsorptionFFModel`](#emissionabsorptionffmodel)
+  - [`EmissionAbsorptionMatchedModel`](#emissionabsorptionmatchedmodel)
+  - [`EmissionAbsorptionMismatchedModel`](#emissionabsorptionmismatchedmodel)
   - [`ordered`](#ordered)
 - [Syntax \& Examples](#syntax--examples)
 - [Issues and Contributing](#issues-and-contributing)
@@ -125,13 +126,21 @@ The models provided by `caribou_hi` are implemented in the [`bayes_spec`](https:
 | `rms_emission`                | Emission spectrum rms noise               | `K`      | ${\rm rms}_{T} \sim {\rm HalfNormal}(\sigma=p)$                       | `1.0`                         |
 | `rms_absorption`              | Optical depth spectrum rms noise          | `K`      | ${\rm rms}_{\tau} \sim {\rm HalfNormal}(\sigma=p)$                    | `0.01`                        |
 
-## `EmissionAbsorptionFFModel`
+## `EmissionAbsorptionMatchedModel`
 
-Finally, `EmissionAbsorptionFFModel` is like `EmissionAbsorptionModel`, except it allows for the possibility of beam dilution in the emission spectrum. That is, the expected brightness temperature contribution from a cloud is modified by a parameter, `filling_factor`, which takes values between zero and one.
+`EmissionAbsorptionMatchedModel` is like `EmissionAbsorptionModel`, except it allows for the possibility of beam dilution in the emission spectrum. That is, the expected brightness temperature contribution from a cloud is modified by a parameter, `filling_factor`, which takes values between zero and one. Use this model when the emission and absorption data have matching beam sizes.
 
 | Cloud Parameter<br>`variable` | Parameter      | Units | Prior, where<br>($p_0, p_1, \dots$) = `prior_{variable}` | Default<br>`prior_{variable}` |
 | :---------------------------- | :------------- | :---- | :------------------------------------------------------- | :---------------------------- |
-| `filling_factor`              | Filling Factor | ``    | $f \sim {\rm Uniform}(0, 1)$               | ``                            |
+| `filling_factor`              | Filling Factor | ``    | $f \sim {\rm Uniform}(0, 1)$                             | ``                            |
+
+## `EmissionAbsorptionMismatchedModel`
+
+`EmissionAbsorptionMismatchedModel` is like `EmissionAbsorptionMatchedModel`, except it also allows for the possibility that a cloud detected in emission is not seen in absorption, for example, due to a mis-match between the emission and absorption beam size. The absorption optical depth of each cloud is modified by a parameter, `absorption_weight`, which takes values between zero and one.
+
+| Cloud Parameter<br>`variable` | Parameter         | Units | Prior, where<br>($p_0, p_1, \dots$) = `prior_{variable}` | Default<br>`prior_{variable}` |
+| :---------------------------- | :---------------- | :---- | :------------------------------------------------------- | :---------------------------- |
+| `absorption_weight`           | Absorption weight | ``    | $w_\tau \sim {\rm Uniform}(0, 1)$                        | ``                            |
 
 ## `ordered`
 
