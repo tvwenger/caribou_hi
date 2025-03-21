@@ -2,26 +2,9 @@
 physics.py
 Physics utilities
 
-Copyright(C) 2024 by
+Copyright(C) 2024-2025 by
 Trey V. Wenger; tvwenger@gmail.com
-
-GNU General Public License v3 (GNU GPLv3)
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published
-by the Free Software Foundation, either version 3 of the License,
-or (at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
-Changelog:
-Trey Wenger - July 2024
+This code is licensed under MIT license (see LICENSE for details)
 """
 
 from typing import Iterable
@@ -29,7 +12,27 @@ from typing import Iterable
 import numpy as np
 import pytensor.tensor as pt
 
-from bayes_spec.utils import gaussian
+
+def gaussian(x: float, center: float, fwhm: float) -> float:
+    """Evaluate a normalized Gaussian function
+
+    Parameters
+    ----------
+    x : float
+        Position at which to evaluate
+    center : float
+        Gaussian centroid
+    fwhm : float
+        Gaussian FWHM line width
+
+    Returns
+    -------
+    float
+        Gaussian evaluated at x
+    """
+    return pt.exp(-4.0 * np.log(2.0) * (x - center) ** 2.0 / fwhm**2.0) * pt.sqrt(
+        4.0 * np.log(2.0) / (np.pi * fwhm**2.0)
+    )
 
 
 def calc_spin_temp(kinetic_temp: float, density: float, n_alpha: float) -> float:
@@ -101,28 +104,35 @@ def calc_thermal_fwhm(kinetic_temp: float) -> float:
     return const * pt.sqrt(kinetic_temp)
 
 
-def calc_nonthermal_fwhm(depth: float, larson_linewidth: float, larson_power: float) -> float:
-    """Calculate the non-thermal line broadening assuming a Larson law relationship
+def calc_nonthermal_fwhm(
+    depth: float, nth_fwhm_1pc: float, depth_nth_fwhm_power: float
+) -> float:
+    """Calculate the non-thermal line broadening assuming a size-linewidth relationship
 
     Parameters
     ----------
     depth : float
         Line-of-sight depth (pc)
-    larson_linewidth : float
-        Larson non-thermal broadening at 1 pc (km s-1)
-    larson_power : float
-        Larson exponent
+    nth_fwhm_1pc : float
+        Non-thermal line width at 1 pc(km s-1)
+    depth_nth_fwhm_power : float
+        Depth vs. non-thermal line width power law index
 
     Returns
     -------
     float
         Non-thermal FWHM line width (km s-1)
     """
-    return larson_linewidth * depth**larson_power
+    return nth_fwhm_1pc * depth**depth_nth_fwhm_power
 
 
-def calc_line_profile(velo_axis: Iterable[float], velocity: Iterable[float], fwhm: Iterable[float]) -> Iterable[float]:
-    """Evaluate the Gaussian line profile, ensuring normalization.
+def calc_line_profile(
+    velo_axis: Iterable[float], velocity: Iterable[float], fwhm: Iterable[float]
+) -> Iterable[float]:
+    """Evaluate the Gaussian line profile. We also consider the spectral
+    channelization. We do not perform a full boxcar convolution, rather
+    we approximate the convolution by assuming an equivalent FWHM for the
+    boxcar kernel of 4 ln(2) / pi * channel_width ~= 0.88 * channel_width
 
     Parameters
     ----------
@@ -136,16 +146,13 @@ def calc_line_profile(velo_axis: Iterable[float], velocity: Iterable[float], fwh
     Returns
     -------
     Iterable[float]
-        Line profile (MHz-1; shape S x N)
+        Line profile (km-1 s; shape S x N)
     """
-    amp = pt.sqrt(4.0 * pt.log(2.0) / (np.pi * fwhm**2.0))
-    profile = gaussian(velo_axis[:, None], amp, velocity, fwhm)
-
-    # normalize
     channel_size = pt.abs(velo_axis[1] - velo_axis[0])
-    profile_int = pt.sum(profile, axis=0)
-    norm = pt.switch(pt.lt(profile_int, 1.0e-6), 1.0, profile_int * channel_size)
-    return profile / norm
+    channel_fwhm = 4.0 * np.log(2.0) * channel_size / np.pi
+    fwhm_conv = pt.sqrt(fwhm**2.0 + channel_fwhm**2.0)
+    profile = gaussian(velo_axis[:, None], velocity, fwhm_conv)
+    return profile
 
 
 def calc_optical_depth(

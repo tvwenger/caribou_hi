@@ -2,23 +2,9 @@
 emission_absorption_model.py
 EmissionAbsorptionModel definition
 
-Copyright(C) 2024 by
+Copyright(C) 2024-2025 by
 Trey V. Wenger; tvwenger@gmail.com
-
-GNU General Public License v3 (GNU GPLv3)
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published
-by the Free Software Foundation, either version 3 of the License,
-or (at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
+This code is licensed under MIT license (see LICENSE for details)
 """
 
 import pymc as pm
@@ -32,7 +18,7 @@ class EmissionAbsorptionModel(HIModel):
     """Definition of the EmissionAbsorptionModel model. SpecData keys must be "emission" and "absorption"."""
 
     def __init__(self, *args, bg_temp: float = 3.77, **kwargs):
-        """Initialize a new EmissionAbsorptionModel instance
+        """Initialize a new EmissionAbsorptionMismatchedModel instance
 
         Parameters
         ----------
@@ -45,19 +31,40 @@ class EmissionAbsorptionModel(HIModel):
         # Save inputs
         self.bg_temp = bg_temp
 
+        # Define TeX representation of each parameter
+        self.var_name_map.update(
+            {
+                "filling_factor": r"$f$",
+                "absorption_weight": r"$w_\tau$",
+            }
+        )
+
     def add_priors(self, *args, **kwargs):
         """Add priors and deterministics to the model"""
         super().add_priors(*args, **kwargs)
 
+        with self.model:
+            # Filling factor
+            filling_factor = pm.Beta(
+                "filling_factor", alpha=1.0, beta=1.0, dims="cloud"
+            )
+
+            # Absorption weight
+            _ = pm.Beta(
+                "absorption_weight", alpha=1.0, beta=1.0 - filling_factor, dims="cloud"
+            )
+
     def add_likelihood(self):
         """Add likelihood to the model. SpecData key must be "emission"."""
         # Predict optical depth spectrum (shape: spectral, clouds)
-        absorption_optical_depth = physics.calc_optical_depth(
-            self.data["absorption"].spectral,
-            self.model["velocity"],
-            10.0 ** self.model["log10_NHI"],
-            self.model["tspin"],
-            self.model["fwhm"],
+        absorption_optical_depth = self.model["absorption_weight"] * (
+            physics.calc_optical_depth(
+                self.data["absorption"].spectral,
+                self.model["velocity"],
+                10.0 ** self.model["log10_NHI"],
+                self.model["tspin"],
+                self.model["fwhm"],
+            )
         )
         emission_optical_depth = physics.calc_optical_depth(
             self.data["emission"].spectral,
@@ -71,9 +78,11 @@ class EmissionAbsorptionModel(HIModel):
         predicted_absorption = 1.0 - pt.exp(-absorption_optical_depth.sum(axis=1))
 
         # Evaluate radiative transfer
-        filling_factor = 1.0
         predicted_emission = physics.radiative_transfer(
-            emission_optical_depth, self.model["tspin"], filling_factor, self.bg_temp
+            emission_optical_depth,
+            self.model["tspin"],
+            self.model["filling_factor"],
+            self.bg_temp,
         )
 
         # Add baseline models
