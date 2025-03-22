@@ -207,11 +207,11 @@ def radiative_transfer(
     Parameters
     ----------
     tau : Iterable[float]
-        Optical depth spectra (shape S x ... x N)
+        Optical depth spectra (shape S x N)
     tspin : Iterable[float]
-        Spin temperatures (K) (shape ... x N)
+        Spin temperatures (K) (shape N)
     filling_factor : Iterable[float]
-        Filling factor (between zero and one) (shape ... x N)
+        Filling factor (between zero and one) (shape N)
     bg_temp : float
         Assumed background temperature
 
@@ -220,15 +220,29 @@ def radiative_transfer(
     Iterable[float]
         Predicted emission brightness temperature spectrum (K) (length S)
     """
-    front_tau = pt.zeros_like(tau[..., 0:1])
-    # cumulative optical depth through clouds
-    sum_tau = pt.concatenate([front_tau, pt.cumsum(tau, axis=-1)], axis=-1)
+    # Attenuation factors (shape S, N+1)
+    # This is the attenuation due to clouds between us and cloud N
+    # [[1.0]*S, atten[0], atten[0]*atten[1], ..., prod(atten)]
+    # where atten[i] = 1.0 - filling_factor[i] + filling_factor[i]*exp(tau[i])
+    # This is a geometric mean weighted by the filling factors
+    attenuation = pt.concatenate(
+        [
+            pt.zeros_like(tau[:, 0:1]),
+            pt.cumprod(1.0 - filling_factor + filling_factor * pt.exp(-tau), axis=1),
+        ],
+        axis=1,
+    )
 
-    # radiative transfer, assuming filling factor = 1.0
-    emission_bg_attenuated = bg_temp * pt.exp(-sum_tau[..., -1])
+    # Background is attenuated by all clouds (shape S)
+    emission_bg_attenuated = bg_temp * attenuation[..., -1]
+
+    # Emission of each cloud (shape S, N)
     emission_clouds = filling_factor * tspin * (1.0 - pt.exp(-tau))
-    emission_clouds_attenuated = emission_clouds * pt.exp(-sum_tau[..., :-1])
-    emission = emission_bg_attenuated + emission_clouds_attenuated.sum(axis=-1)
+
+    # Attenuation by foreground clouds (shape S, N)
+    # [TB(N=0), TB(N=1)*exp(-tau(N=0)), TB(N=2)*exp(-tau(N=0)-tau(N=1)), ...]
+    emission_clouds_attenuated = emission_clouds * attenuation[..., :-1]
+    emission = emission_bg_attenuated + emission_clouds_attenuated.sum(axis=1)
 
     # ON - OFF
     return emission - bg_temp
