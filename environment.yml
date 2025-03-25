@@ -10,7 +10,7 @@ dependencies:
   - pytensor
   - nutpie
   - numba
-  - arviz
+#  - arviz
   - matplotlib
   - scipy
   - scikit-learn
@@ -24,4 +24,5 @@ dependencies:
     - "sphinx_rtd_theme"
     - "nbsphinx"
     - "numpydoc"
-    - "bayes_spec>=1.7.0"
+    - "bayes_spec>=1.7.4"
+    - git+https://github.com/tvwenger/arviz.git@plot_pair_reference_labels

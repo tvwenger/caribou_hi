@@ -26,6 +26,7 @@ class AbsorptionModel(HIModel):
             10.0 ** self.model["log10_NHI"],
             self.model["tspin"],
             self.model["fwhm"],
+            self.model["fwhm_L"],
         )
 
         # Sum over clouds
