@@ -10,13 +10,13 @@ dependencies:
   - pytensor
   - nutpie
   - numba
-#  - arviz
+  - arviz
   - matplotlib
   - scipy
   - scikit-learn
   - graphviz
-  - jaxlib==0.4.28
-  - jax==0.4.28
+  - jaxlib
+  - jax
   - blackjax
   - numpyro
   - pip
@@ -24,5 +24,4 @@ dependencies:
     - "sphinx_rtd_theme"
     - "nbsphinx"
     - "numpydoc"
-    - "bayes_spec>=1.7.4"
-    - git+https://github.com/tvwenger/arviz.git@plot_pair_reference_labels
+    - "bayes_spec>=1.7.5"

@@ -19,7 +19,7 @@ def test_emission_model():
         "emission": SpecData(velocity, brightness, 1.0),
     }
     model = EmissionModel(data, 2, baseline_degree=1)
-    model.add_priors()
+    model.add_priors(prior_fwhm_L=1.0)
     model.add_likelihood()
     assert model._validate()
 

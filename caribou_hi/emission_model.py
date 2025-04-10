@@ -12,6 +12,8 @@ import pymc as pm
 from caribou_hi.hi_model import HIModel
 from caribou_hi import physics
 
+import numpy as np
+
 
 class EmissionModel(HIModel):
     """Definition of the EmissionModel model. SpecData keys must be "emission"."""
@@ -30,20 +32,11 @@ class EmissionModel(HIModel):
         # Save inputs
         self.bg_temp = bg_temp
 
-        # Define TeX representation of each parameter
         self.var_name_map.update(
             {
-                "filling_factor": r"$f$",
+                "log10_NHI": r"log$_{10}$ $N_{\rm HI}/f$ (cm$^{-2}$)",
             }
         )
-
-    def add_priors(self, *args, **kwargs):
-        """Add priors and deterministics to the model"""
-        super().add_priors(*args, **kwargs)
-
-        with self.model:
-            # Filling factor
-            _ = pm.Beta("filling_factor", alpha=1.0, beta=1.0, dims="cloud")
 
     def add_likelihood(self):
         """Add likelihood to the model. SpecData key must be "emission"."""
@@ -58,10 +51,12 @@ class EmissionModel(HIModel):
         )
 
         # Evaluate radiative transfer
+        # Assuming filling_factor = 1.0
+        filling_factor = np.ones(self.n_clouds)
         predicted_line = physics.radiative_transfer(
             optical_depth,
             self.model["tspin"],
-            self.model["filling_factor"],
+            filling_factor,
             self.bg_temp,
         )
 

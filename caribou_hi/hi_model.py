@@ -28,9 +28,8 @@ class HIModel(BaseModel):
 
         # Select features used for posterior clustering
         self._cluster_features += [
-            "log10_NHI",
-            "log10_tkin",
             "velocity",
+            "fwhm",
         ]
 
         # Define TeX representation of each parameter
@@ -61,8 +60,8 @@ class HIModel(BaseModel):
         prior_velocity: Iterable[float] = [0.0, 10.0],
         prior_log10_n_alpha: Iterable[float] = [-6.0, 1.0],
         prior_log10_nth_fwhm_1pc: Iterable[float] = [0.2, 0.1],
-        prior_depth_nth_fwhm_power: Iterable[float] = [0.4, 0.1],
-        prior_fwhm_L: float = 10.0,
+        prior_depth_nth_fwhm_power: Iterable[float] = [0.3, 0.1],
+        prior_fwhm_L: Optional[float] = None,
         prior_baseline_coeffs: Optional[dict[str, Iterable[float]]] = None,
         ordered: bool = False,
         hyper_depth_linewidth: bool = False,
@@ -90,12 +89,13 @@ class HIModel(BaseModel):
             Prior distribution on non-thermal line width at 1 pc, by default [0.2, 0.1], where
             log10_nth_fwhm_1pc ~ Normal(mu=prior[0], sigma=prior[1])
         prior_depth_nth_fwhm_power : Iterable[float], optional
-            Prior distribution on depth vs. non-thermal line width power law index, by default [0.4, 0.1], where
-            depth_nth_fwhm_power ~ Normal(mu=prior[0], sigma=prior[1])
-        prior_fwhm_L : float, optional
+            Prior distribution on depth vs. non-thermal line width power law index, by default [0.3, 0.1], where
+            depth_nth_fwhm_power ~ Gamma(mu=prior[0], sigma=prior[1])
+        prior_fwhm_L : Optional[float], optional
             Prior distribution on the pseudo-Voight Lorentzian profile line width (km/s),
-            by default 10.0, where
+            by default None, where
             fwhm_L ~ HalfNormal(sigma=prior_fwhm_L)
+            If None, the line profile is assumed Gaussian.
         prior_baseline_coeffs : Optional[dict[str, Iterable[float]]], optional
             Width of normal prior distribution on the normalized baseline polynomial coefficients.
             Keys are dataset names and values are lists of length `baseline_degree+1`. If None, use
@@ -188,16 +188,10 @@ class HIModel(BaseModel):
             )
 
             # Non-thermal FWHM vs. depth power law index (shape: clouds)
-            depth_nth_fwhm_power_norm = pm.Normal(
-                "depth_nth_fwhm_power_norm",
-                mu=0.0,
-                sigma=1.0,
-                dims=None if hyper_depth_linewidth else "cloud",
-            )
-            depth_nth_fwhm_power = pm.Deterministic(
+            depth_nth_fwhm_power = pm.Gamma(
                 "depth_nth_fwhm_power",
-                prior_depth_nth_fwhm_power[0]
-                + prior_depth_nth_fwhm_power[1] * depth_nth_fwhm_power_norm,
+                mu=prior_depth_nth_fwhm_power[0],
+                sigma=prior_depth_nth_fwhm_power[1],
                 dims=None if hyper_depth_linewidth else "cloud",
             )
 
@@ -242,8 +236,11 @@ class HIModel(BaseModel):
             )
 
             # Pseudo-Voigt profile latent variable (km/s)
-            fwhm_L_norm = pm.HalfNormal("fwhm_L_norm", sigma=1.0)
-            _ = pm.Deterministic("fwhm_L", prior_fwhm_L * fwhm_L_norm)
+            if prior_fwhm_L is not None:
+                fwhm_L_norm = pm.HalfNormal("fwhm_L_norm", sigma=1.0)
+                _ = pm.Deterministic("fwhm_L", prior_fwhm_L * fwhm_L_norm)
+            else:
+                _ = pm.Data("fwhm_L", 0.0)
 
     @abstractmethod
     def add_likelihood(self, *args, **kwargs):  # pragma: no cover

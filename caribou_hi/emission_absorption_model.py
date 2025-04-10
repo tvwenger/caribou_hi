@@ -51,7 +51,10 @@ class EmissionAbsorptionModel(HIModel):
 
             # Absorption weight
             _ = pm.Beta(
-                "absorption_weight", alpha=1.0, beta=1.0 - filling_factor, dims="cloud"
+                "absorption_weight",
+                alpha=1.0,
+                beta=1.0 - filling_factor,
+                dims="cloud",
             )
 
     def add_likelihood(self):

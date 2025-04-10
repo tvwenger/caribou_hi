@@ -66,8 +66,9 @@ def test_calc_optical_depth():
     fwhm = np.array([10.0, 20.0])
     NHI = np.array([1.0e20, 1.0e21])
     tspin = np.array([1000.0, 5000.0])
+    fwhm_L = 1.0
     optical_depth = physics.calc_optical_depth(
-        velo_axis, velocity, NHI, tspin, fwhm
+        velo_axis, velocity, NHI, tspin, fwhm, fwhm_L
     ).eval()
     assert optical_depth.shape == (1001, 2)
     assert np.all(optical_depth >= 0)
@@ -79,8 +80,9 @@ def test_radiative_transfer():
     fwhm = np.array([10.0, 20.0])
     NHI = np.array([1.0e20, 1.0e21])
     tspin = np.array([1000.0, 5000.0])
+    fwhm_L = 1.0
     optical_depth = physics.calc_optical_depth(
-        velo_axis, velocity, NHI, tspin, fwhm
+        velo_axis, velocity, NHI, tspin, fwhm, fwhm_L
     ).eval()
     bg_temp = 2.7
     filling_factor = 1.0
