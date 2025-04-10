@@ -18,7 +18,7 @@ class EmissionAbsorptionModel(HIModel):
     """Definition of the EmissionAbsorptionModel model. SpecData keys must be "emission" and "absorption"."""
 
     def __init__(self, *args, bg_temp: float = 3.77, **kwargs):
-        """Initialize a new EmissionAbsorptionMismatchedModel instance
+        """Initialize a new EmissionAbsorptionModel instance
 
         Parameters
         ----------
