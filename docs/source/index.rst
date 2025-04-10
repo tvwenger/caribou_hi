@@ -10,19 +10,20 @@ Installation
 ============
 .. code-block::
 
-    conda create --name caribou_hi -c conda-forge pymc nutpie pip
+    conda create --name caribou_hi -c conda-forge pytensor pymc pip
     conda activate caribou_hi
+    # Due to a bug in arviz, this fork is temporarily necessary
+    # See: https://github.com/arviz-devs/arviz/issues/2437
+    pip install git+https://github.com/tvwenger/arviz.git@plot_pair_reference_labels
     pip install caribou_hi
 
 .. toctree::
    :maxdepth: 2
    :caption: Tutorials:
 
-   notebooks/emission_model
    notebooks/absorption_model
+   notebooks/emission_model
    notebooks/emission_absorption_model
-   notebooks/emission_absorption_matched_model
-   notebooks/emission_absorption_mismatched_model
    notebooks/optimization
 
 .. toctree::

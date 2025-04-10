@@ -2,26 +2,9 @@
 physics.py
 Physics utilities
 
-Copyright(C) 2024 by
+Copyright(C) 2024-2025 by
 Trey V. Wenger; tvwenger@gmail.com
-
-GNU General Public License v3 (GNU GPLv3)
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published
-by the Free Software Foundation, either version 3 of the License,
-or (at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
-Changelog:
-Trey Wenger - July 2024
+This code is licensed under MIT license (see LICENSE for details)
 """
 
 from typing import Iterable
@@ -29,7 +12,47 @@ from typing import Iterable
 import numpy as np
 import pytensor.tensor as pt
 
-from bayes_spec.utils import gaussian
+
+def gaussian(x: float, center: float, fwhm: float) -> float:
+    """Evaluate a normalized Gaussian function
+
+    Parameters
+    ----------
+    x : float
+        Position at which to evaluate
+    center : float
+        Gaussian centroid
+    fwhm : float
+        Gaussian FWHM line width
+
+    Returns
+    -------
+    float
+        Gaussian evaluated at x
+    """
+    return pt.exp(-4.0 * np.log(2.0) * (x - center) ** 2.0 / fwhm**2.0) * pt.sqrt(
+        4.0 * np.log(2.0) / (np.pi * fwhm**2.0)
+    )
+
+
+def lorentzian(x: float, center: float, fwhm: float) -> float:
+    """Evaluate a normalized Lorentzian function
+
+    Parameters
+    ----------
+    x : float
+        Position at which to evaluate
+    center : float
+        Centroid
+    fwhm : float
+        FWHM
+
+    Returns
+    -------
+    float
+        Lorentzian evaluated at x
+    """
+    return fwhm / (2.0 * np.pi) / ((x - center) ** 2.0 + (fwhm / 2.0) ** 2.0)
 
 
 def calc_spin_temp(kinetic_temp: float, density: float, n_alpha: float) -> float:
@@ -101,28 +124,82 @@ def calc_thermal_fwhm(kinetic_temp: float) -> float:
     return const * pt.sqrt(kinetic_temp)
 
 
-def calc_nonthermal_fwhm(depth: float, larson_linewidth: float, larson_power: float) -> float:
-    """Calculate the non-thermal line broadening assuming a Larson law relationship
+def calc_nonthermal_fwhm(
+    depth: float, nth_fwhm_1pc: float, depth_nth_fwhm_power: float
+) -> float:
+    """Calculate the non-thermal line broadening assuming a size-linewidth relationship
 
     Parameters
     ----------
     depth : float
         Line-of-sight depth (pc)
-    larson_linewidth : float
-        Larson non-thermal broadening at 1 pc (km s-1)
-    larson_power : float
-        Larson exponent
+    nth_fwhm_1pc : float
+        Non-thermal line width at 1 pc(km s-1)
+    depth_nth_fwhm_power : float
+        Depth vs. non-thermal line width power law index
 
     Returns
     -------
     float
         Non-thermal FWHM line width (km s-1)
     """
-    return larson_linewidth * depth**larson_power
+    return nth_fwhm_1pc * depth**depth_nth_fwhm_power
 
 
-def calc_line_profile(velo_axis: Iterable[float], velocity: Iterable[float], fwhm: Iterable[float]) -> Iterable[float]:
-    """Evaluate the Gaussian line profile, ensuring normalization.
+def calc_pseudo_voigt(
+    velo_axis: Iterable[float],
+    velocity: Iterable[float],
+    fwhm: Iterable[float],
+    fwhm_L: float,
+) -> Iterable[float]:
+    """Evaluate a pseudo Voight profile in order to aid in posterior exploration
+    of the parameter space. This parameterization includes a latent variable fwhm_L, which
+    can be conditioned on zero to analyze the posterior. We also consider the spectral
+    channelization. We do not perform a full boxcar convolution, rather
+    we approximate the convolution by assuming an equivalent FWHM for the
+    boxcar kernel of 4 ln(2) / pi * channel_width ~= 0.88 * channel_width
+
+    Parameters
+    ----------
+    velo_axis : Iterable[float]
+        Observed velocity axis (km s-1; length S)
+    velocity : Iterable[float]
+        Cloud center velocity (km s-1; length N)
+    fwhm : Iterable[float]
+        Cloud FWHM line widths (km s-1; length N)
+    fwhm_L : float
+        Latent pseudo-Voigt profile Lorentzian FWHM (km s-1)
+
+    Returns
+    -------
+    Iterable[float]
+        Line profile (MHz-1; shape S x N)
+    """
+    channel_size = pt.abs(velo_axis[1] - velo_axis[0])
+    channel_fwhm = 4.0 * np.log(2.0) * channel_size / np.pi
+    fwhm_conv = pt.sqrt(fwhm**2.0 + channel_fwhm**2.0 + fwhm_L**2.0)
+    fwhm_L_frac = fwhm_L / fwhm_conv
+    eta = (
+        1.36603 * fwhm_L_frac - 0.47719 * fwhm_L_frac**2.0 + 0.11116 * fwhm_L_frac**3.0
+    )
+
+    # gaussian component
+    gauss_part = gaussian(velo_axis[:, None], velocity, fwhm_conv)
+
+    # lorentzian component
+    lorentz_part = lorentzian(velo_axis[:, None], velocity, fwhm_conv)
+
+    # linear combination
+    return eta * lorentz_part + (1.0 - eta) * gauss_part
+
+
+def calc_line_profile(
+    velo_axis: Iterable[float], velocity: Iterable[float], fwhm: Iterable[float]
+) -> Iterable[float]:
+    """Evaluate the Gaussian line profile. We also consider the spectral
+    channelization. We do not perform a full boxcar convolution, rather
+    we approximate the convolution by assuming an equivalent FWHM for the
+    boxcar kernel of 4 ln(2) / pi * channel_width ~= 0.88 * channel_width
 
     Parameters
     ----------
@@ -136,16 +213,13 @@ def calc_line_profile(velo_axis: Iterable[float], velocity: Iterable[float], fwh
     Returns
     -------
     Iterable[float]
-        Line profile (MHz-1; shape S x N)
+        Line profile (km-1 s; shape S x N)
     """
-    amp = pt.sqrt(4.0 * pt.log(2.0) / (np.pi * fwhm**2.0))
-    profile = gaussian(velo_axis[:, None], amp, velocity, fwhm)
-
-    # normalize
     channel_size = pt.abs(velo_axis[1] - velo_axis[0])
-    profile_int = pt.sum(profile, axis=0)
-    norm = pt.switch(pt.lt(profile_int, 1.0e-6), 1.0, profile_int * channel_size)
-    return profile / norm
+    channel_fwhm = 4.0 * np.log(2.0) * channel_size / np.pi
+    fwhm_conv = pt.sqrt(fwhm**2.0 + channel_fwhm**2.0)
+    profile = gaussian(velo_axis[:, None], velocity, fwhm_conv)
+    return profile
 
 
 def calc_optical_depth(
@@ -154,6 +228,7 @@ def calc_optical_depth(
     NHI: Iterable[float],
     tspin: Iterable[float],
     fwhm: Iterable[float],
+    fwhm_L: float,
 ) -> Iterable[float]:
     """Evaluate the optical depth spectra following Marchal et al. (2019) eq. 15
     assuming a homogeneous and isothermal cloud.
@@ -170,6 +245,8 @@ def calc_optical_depth(
         Spin tempearture (K) (length N)
     fwhm : Iterable[float]
         FWHM line width (km s-1)
+    fwhm_L : float
+        Latent pseudo-Voigt profile Lorentzian FWHM (km s-1)
 
     Returns
     -------
@@ -177,7 +254,8 @@ def calc_optical_depth(
         Optical depth spectra (shape S x N)
     """
     # Evaluate line profile
-    line_profile = calc_line_profile(velo_axis, velocity, fwhm)
+    # line_profile = calc_line_profile(velo_axis, velocity, fwhm)
+    line_profile = calc_pseudo_voigt(velo_axis, velocity, fwhm, fwhm_L)
 
     # Evaluate the optical depth spectra
     const = 1.82243e18  # cm-2 (K km s-1)-1
@@ -200,11 +278,11 @@ def radiative_transfer(
     Parameters
     ----------
     tau : Iterable[float]
-        Optical depth spectra (shape S x ... x N)
+        Optical depth spectra (shape S x N)
     tspin : Iterable[float]
-        Spin temperatures (K) (shape ... x N)
+        Spin temperatures (K) (shape N)
     filling_factor : Iterable[float]
-        Filling factor (between zero and one) (shape ... x N)
+        Filling factor (between zero and one) (shape N)
     bg_temp : float
         Assumed background temperature
 
@@ -213,15 +291,29 @@ def radiative_transfer(
     Iterable[float]
         Predicted emission brightness temperature spectrum (K) (length S)
     """
-    front_tau = pt.zeros_like(tau[..., 0:1])
-    # cumulative optical depth through clouds
-    sum_tau = pt.concatenate([front_tau, pt.cumsum(tau, axis=-1)], axis=-1)
+    # Attenuation factors (shape S, N+1)
+    # This is the attenuation due to clouds between us and cloud N
+    # [[1.0]*S, atten[0], atten[0]*atten[1], ..., prod(atten)]
+    # where atten[i] = 1.0 - filling_factor[i] + filling_factor[i]*exp(tau[i])
+    # This is a geometric mean weighted by the filling factors
+    attenuation = pt.concatenate(
+        [
+            pt.ones_like(tau[:, 0:1]),
+            pt.cumprod(1.0 - filling_factor + filling_factor * pt.exp(-tau), axis=1),
+        ],
+        axis=1,
+    )
 
-    # radiative transfer, assuming filling factor = 1.0
-    emission_bg_attenuated = bg_temp * pt.exp(-sum_tau[..., -1])
+    # Background is attenuated by all clouds (shape S)
+    emission_bg_attenuated = bg_temp * attenuation[..., -1]
+
+    # Emission of each cloud (shape S, N)
     emission_clouds = filling_factor * tspin * (1.0 - pt.exp(-tau))
-    emission_clouds_attenuated = emission_clouds * pt.exp(-sum_tau[..., :-1])
-    emission = emission_bg_attenuated + emission_clouds_attenuated.sum(axis=-1)
+
+    # Attenuation by foreground clouds (shape S, N)
+    # [TB(N=0), TB(N=1)*exp(-tau(N=0)), TB(N=2)*exp(-tau(N=0)-tau(N=1)), ...]
+    emission_clouds_attenuated = emission_clouds * attenuation[..., :-1]
+    emission = emission_bg_attenuated + emission_clouds_attenuated.sum(axis=1)
 
     # ON - OFF
     return emission - bg_temp

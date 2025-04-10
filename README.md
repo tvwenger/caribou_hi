@@ -16,12 +16,11 @@ Read below to get started, and check out the tutorials and guides here: https://
   - [Development Installation](#development-installation)
 - [Notes on Physics \& Radiative Transfer](#notes-on-physics--radiative-transfer)
 - [Models](#models)
-  - [`EmissionModel`](#emissionmodel)
   - [`AbsorptionModel`](#absorptionmodel)
+  - [`EmissionModel`](#emissionmodel)
   - [`EmissionAbsorptionModel`](#emissionabsorptionmodel)
-  - [`EmissionAbsorptionMatchedModel`](#emissionabsorptionmatchedmodel)
-  - [`EmissionAbsorptionMismatchedModel`](#emissionabsorptionmismatchedmodel)
   - [`ordered`](#ordered)
+  - [`fwhm_L`](#fwhm_l)
 - [Syntax \& Examples](#syntax--examples)
 - [Issues and Contributing](#issues-and-contributing)
 - [License and Copyright](#license-and-copyright)
@@ -32,8 +31,11 @@ Read below to get started, and check out the tutorials and guides here: https://
 
 Install with `pip` in a `conda` virtual environment:
 ```
-conda create --name caribou_hi -c conda-forge pymc nutpie pip
+conda create --name caribou_hi -c conda-forge pymc cxx-compiler pip
 conda activate caribou_hi
+# Due to a bug in arviz, this fork is temporarily necessary
+# See: https://github.com/arviz-devs/arviz/issues/2437
+pip install git+https://github.com/tvwenger/arviz.git@plot_pair_reference_labels
 pip install caribou_hi
 ```
 
@@ -65,82 +67,52 @@ Notably, since these are *forward models*, we do not make assumptions regarding 
 
 The models provided by `caribou_hi` are implemented in the [`bayes_spec`](https://github.com/tvwenger/bayes_spec) framework. `bayes_spec` assumes that the source of spectral line emission can be decomposed into a series of "clouds", each of which is defined by a set of model parameters. Here we define the models available in `caribou_hi`.
 
-## `EmissionModel`
-
-`EmissionModel` is a model that predicts 21-cm emission brightness temperature spectra. The `SpecData` key for this model must be `emission`. The following diagram demonstrates the relationship between the free parameters (empty ellipses), deterministic quantities (rectangles), model predictions (filled ellipses), and observations (filled, round rectangles). Many of the parameters are internally normalized (and thus have names like `_norm`). The subsequent tables describe the model parameters in more detail.
-
-![emission model graph](docs/source/notebooks/emission_model.png)
-
-| Cloud Parameter<br>`variable` | Parameter                               | Units    | Prior, where<br>($p_0, p_1, \dots$) = `prior_{variable}`     | Default<br>`prior_{variable}` |
-| :---------------------------- | :-------------------------------------- | :------- | :----------------------------------------------------------- | :---------------------------- |
-| `log10_NHI`                   | log10 HI column density                 | `cm-2`   | $\log_{10}N_{\rm HI} \sim {\rm Normal}(\mu=p_0, \sigma=p_1)$ | `[20.0, 1.0]`                 |
-| `log10_depth`                 | log10 line-of-sight depth               | `pc`     | $\log_{10}d \sim {\rm Normal}(\mu=p_0, \sigma=p_1)$          | `[1.0, 1.0]`                  |
-| `log10_pressure`              | log10 pressure                          | `K cm-3` | $\log_{10}P_{\rm th} \sim {\rm Normal}(\mu=p_0, \sigma=p_1)$ | `[3.0, 1.0]`                  |
-| `velocity`                    | Velocity (same reference frame as data) | `km s-1` | $V \sim {\rm Normal}(\mu=p_0, \sigma=p_1)$                   | `[0.0, 10.0]`                 |
-
-| Hyper Parameter<br>`variable` | Parameter                                 | Units    | Prior, where<br>($p_0, p_1, \dots$) = `prior_{variable}`              | Default<br>`prior_{variable}` |
-| :---------------------------- | :---------------------------------------- | :------- | :-------------------------------------------------------------------- | :---------------------------- |
-| `log10_n_alpha`               | log10 Ly&alpha; photon density            | `cm-3`   | $\log_{10}n_\alpha \sim {\rm Normal}(\mu=p_0, \sigma=p_1)$            | `[-6.0, 1.0]`                 |
-| `log10_larson_linewidth`      | Non-thermal broadening FWHM at 1 pc       | `km s-1` | $\log_{10}\Delta V_{\rm 1 pc} \sim {\rm Normal}(\mu=p_0, \sigma=p_1)$ | `[0.2, 0.1]`                  |
-| `larson_power`                | Nonthermal size-linewidth power law index | unitless | $\alpha \sim {\rm Normal}(\mu=p_0, \sigma=p_1)$                       | `[0.4, 0.1]`                  |
-| `rms_emission`                | Emission spectrum rms noise               | `K`      | ${\rm rms}_{T} \sim {\rm HalfNormal}(\sigma=p)$                       | `1.0`                         |
-
 ## `AbsorptionModel`
 
-`AbsorptionModel` is otherwise identical to `EmissionModel`, except it predicts 21-cm optical depth spectra. The `SpecData` key for this model must be `absorption`, which contains the `1-exp(-tau)` spectral data. The following diagram demonstrates the model, and the subsequent table describe the additional model parameters.
+Note that this model struggles to fit absorption-only data. We recommend sticking to `EmissionModel` and `EmissionAbsorptionModel`, so hopefully you have some emission data too!
+
+`AbsorptionModel` is a model that predicts 21-cm absorption spectra. The `SpecData` key for this model must be `absorption`. The following diagram demonstrates the relationship between the free parameters (empty ellipses), deterministic quantities (rectangles), model predictions (filled ellipses), and observations (filled, round rectangles). Many of the parameters are internally normalized (and thus have names like `_norm`). The subsequent tables describe the model parameters in more detail.
 
 ![absorption model graph](docs/source/notebooks/absorption_model.png)
 
-| Cloud Parameter<br>`variable` | Parameter                               | Units    | Prior, where<br>($p_0, p_1, \dots$) = `prior_{variable}`     | Default<br>`prior_{variable}` |
-| :---------------------------- | :-------------------------------------- | :------- | :----------------------------------------------------------- | :---------------------------- |
-| `log10_NHI`                   | log10 HI column density                 | `cm-2`   | $\log_{10}N_{\rm HI} \sim {\rm Normal}(\mu=p_0, \sigma=p_1)$ | `[20.0, 1.0]`                 |
-| `log10_depth`                 | log10 line-of-sight depth               | `pc`     | $\log_{10}d \sim {\rm Normal}(\mu=p_0, \sigma=p_1)$          | `[1.0, 1.0]`                  |
-| `log10_pressure`              | log10 pressure                          | `K cm-3` | $\log_{10}P_{\rm th} \sim {\rm Normal}(\mu=p_0, \sigma=p_1)$ | `[3.0, 1.0]`                  |
-| `velocity`                    | Velocity (same reference frame as data) | `km s-1` | $V \sim {\rm Normal}(\mu=p_0, \sigma=p_1)$                   | `[0.0, 10.0]`                 |
-
-| Hyper Parameter<br>`variable` | Parameter                                 | Units    | Prior, where<br>($p_0, p_1, \dots$) = `prior_{variable}`              | Default<br>`prior_{variable}` |
+| Cloud Parameter<br>`variable` | Parameter                                 | Units    | Prior, where<br>($p_0, p_1, \dots$) = `prior_{variable}`              | Default<br>`prior_{variable}` |
 | :---------------------------- | :---------------------------------------- | :------- | :-------------------------------------------------------------------- | :---------------------------- |
-| `log10_n_alpha`               | log10 Ly&alpha; photon density            | `cm-3`   | $\log_{10}n_\alpha \sim {\rm Normal}(\mu=p_0, \sigma=p_1)$            | `[-6.0, 1.0]`                 |
-| `log10_larson_linewidth`      | Non-thermal broadening FWHM at 1 pc       | `km s-1` | $\log_{10}\Delta V_{\rm 1 pc} \sim {\rm Normal}(\mu=p_0, \sigma=p_1)$ | `[0.2, 0.1]`                  |
-| `larson_power`                | Nonthermal size-linewidth power law index | unitless | $\alpha \sim {\rm Normal}(\mu=p_0, \sigma=p_1)$                       | `[0.4, 0.1]`                  |
-| `rms_absorption`              | Optical depth spectrum rms noise          | `K`      | ${\rm rms}_{\tau} \sim {\rm HalfNormal}(\sigma=p)$                    | `0.01`                        |
+| `log10_NHI`                   | log10 HI column density                   | `cm-2`   | $\log_{10}N_{\rm HI} \sim {\rm Normal}(\mu=p_0, \sigma=p_1)$          | `[20.0, 1.0]`                 |
+| `log10_depth`                 | log10 line-of-sight depth                 | `pc`     | $\log_{10}d \sim {\rm Normal}(\mu=p_0, \sigma=p_1)$                   | `[1.0, 1.0]`                  |
+| `log10_pressure`              | log10 pressure                            | `K cm-3` | $\log_{10}P_{\rm th} \sim {\rm Normal}(\mu=p_0, \sigma=p_1)$          | `[3.0, 1.0]`                  |
+| `velocity`                    | Velocity (same reference frame as data)   | `km s-1` | $V \sim {\rm Normal}(\mu=p_0, \sigma=p_1)$                            | `[0.0, 10.0]`                 |
+| `log10_nth_fwhm_1pc`          | Non-thermal FWHM at 1 pc                  | `km s-1` | $\log_{10}\Delta V_{\rm 1 pc} \sim {\rm Normal}(\mu=p_0, \sigma=p_1)$ | `[0.2, 0.1]`                  |
+| `depth_nth_fwhm_power`        | Nonthermal size-linewidth power law index | unitless | $\alpha \sim {\rm Gamma}(\mu=p_0, \sigma=p_1)$                        | `[0.3, 0.1]`                  |
+
+| Hyper Parameter<br>`variable` | Parameter                      | Units    | Prior, where<br>($p_0, p_1, \dots$) = `prior_{variable}`   | Default<br>`prior_{variable}` |
+| :---------------------------- | :----------------------------- | :------- | :--------------------------------------------------------- | :---------------------------- |
+| `log10_n_alpha`               | log10 Ly&alpha; photon density | `cm-3`   | $\log_{10}n_\alpha \sim {\rm Normal}(\mu=p_0, \sigma=p_1)$ | `[-6.0, 1.0]`                 |
+| `fwhm_L`                      | Lorentzian FWHM line width     | `km s-1` | $\Delta V_{L} \sim {\rm HalfNormal}(\sigma=p)$             | `None`                        |
+
+The parameters describing the non-thermal line broadening, `log10_nth_fwhm_1pc` and `depth_nth_fwhm_power`, are treated as cloud parameters by default and with `hyper_depth_linewidth = False`. With `hyper_depth_linewidth = True`, however, these parameters are treated as hyper parameters (and thus shared between all clouds). The later imposes a bias by assuming that all clouds share the same size-linewidth relationship.
+
+## `EmissionModel`
+
+`EmissionModel` is similar to `AbsorptionModel`, except it predicts 21-cm emission brightness temperature spectra. The `SpecData` key for this model must be `emission`. `EmissionModel` takes an additional initialization argument, `bg_temp`, which is the assumed background brightness temperature (by default it is `bg_temp=3.77`, an estimate for the cosmic microwave background and Galactic synchrotron emission at 21-cm). The following diagram demonstrates the model.
+
+![emission model graph](docs/source/notebooks/emission_model.png)
 
 ## `EmissionAbsorptionModel`
 
-`EmissionAbsorptionModel` predicts both 21-cm emission (brightness temperature) and optical depth spectra assuming that both observations trace the same gas. The `SpecData` keys must be `emission` and `absorption`. The following diagram demonstrates the model, and the subsequent table describe the additional model parameters.
+`EmissionAbsorptionModel` predicts both 21-cm emission (brightness temperature) and absorption (`1-exp(-tau)`) spectra. The `SpecData` keys must be `emission` and `absorption`.  `EmissionAbsorptionModel` takes an additional initialization argument, `bg_temp`, which is the assumed background brightness temperature (by default it is `bg_temp=3.77`, an estimate for the cosmic microwave background and Galactic synchrotron emission at 21-cm). The following diagram demonstrates the model, and the subsequent table describe the additional model parameters.
+
+Note that the filling factor, $f$, is unconstrained, so the reported column densities are really $N_{\rm HI}/f$.
 
 ![emission absorption model graph](docs/source/notebooks/emission_absorption_model.png)
 
-| Cloud Parameter<br>`variable` | Parameter                               | Units    | Prior, where<br>($p_0, p_1, \dots$) = `prior_{variable}`     | Default<br>`prior_{variable}` |
-| :---------------------------- | :-------------------------------------- | :------- | :----------------------------------------------------------- | :---------------------------- |
-| `log10_NHI`                   | log10 HI column density                 | `cm-2`   | $\log_{10}N_{\rm HI} \sim {\rm Normal}(\mu=p_0, \sigma=p_1)$ | `[20.0, 1.0]`                 |
-| `log10_depth`                 | log10 line-of-sight depth               | `pc`     | $\log_{10}d \sim {\rm Normal}(\mu=p_0, \sigma=p_1)$          | `[1.0, 1.0]`                  |
-| `log10_pressure`              | log10 pressure                          | `K cm-3` | $\log_{10}P_{\rm th} \sim {\rm Normal}(\mu=p_0, \sigma=p_1)$ | `[3.0, 1.0]`                  |
-| `velocity`                    | Velocity (same reference frame as data) | `km s-1` | $V \sim {\rm Normal}(\mu=p_0, \sigma=p_1)$                   | `[0.0, 10.0]`                 |
-
-| Hyper Parameter<br>`variable` | Parameter                                 | Units    | Prior, where<br>($p_0, p_1, \dots$) = `prior_{variable}`              | Default<br>`prior_{variable}` |
-| :---------------------------- | :---------------------------------------- | :------- | :-------------------------------------------------------------------- | :---------------------------- |
-| `log10_n_alpha`               | log10 Ly&alpha; photon density            | `cm-3`   | $\log_{10}n_\alpha \sim {\rm Normal}(\mu=p_0, \sigma=p_1)$            | `[-6.0, 1.0]`                 |
-| `log10_larson_linewidth`      | Non-thermal broadening FWHM at 1 pc       | `km s-1` | $\log_{10}\Delta V_{\rm 1 pc} \sim {\rm Normal}(\mu=p_0, \sigma=p_1)$ | `[0.2, 0.1]`                  |
-| `larson_power`                | Nonthermal size-linewidth power law index | unitless | $\alpha \sim {\rm Normal}(\mu=p_0, \sigma=p_1)$                       | `[0.4, 0.1]`                  |
-| `rms_emission`                | Emission spectrum rms noise               | `K`      | ${\rm rms}_{T} \sim {\rm HalfNormal}(\sigma=p)$                       | `1.0`                         |
-| `rms_absorption`              | Optical depth spectrum rms noise          | `K`      | ${\rm rms}_{\tau} \sim {\rm HalfNormal}(\sigma=p)$                    | `0.01`                        |
-
-## `EmissionAbsorptionMatchedModel`
-
-`EmissionAbsorptionMatchedModel` is like `EmissionAbsorptionModel`, except it allows for the possibility of beam dilution in the emission spectrum. That is, the expected brightness temperature contribution from a cloud is modified by a parameter, `filling_factor`, which takes values between zero and one. Use this model when the emission and absorption data have matching beam sizes.
-
-| Cloud Parameter<br>`variable` | Parameter      | Units | Prior, where<br>($p_0, p_1, \dots$) = `prior_{variable}` | Default<br>`prior_{variable}` |
-| :---------------------------- | :------------- | :---- | :------------------------------------------------------- | :---------------------------- |
-| `filling_factor`              | Filling Factor | ``    | $f \sim {\rm Uniform}(0, 1)$                             | ``                            |
-
-## `EmissionAbsorptionMismatchedModel`
-
-`EmissionAbsorptionMismatchedModel` is like `EmissionAbsorptionMatchedModel`, except it also allows for the possibility that a cloud detected in emission is not seen in absorption, for example, due to a mis-match between the emission and absorption beam size. The absorption optical depth of each cloud is modified by a parameter, `absorption_weight`, which takes values between zero and one.
-
 | Cloud Parameter<br>`variable` | Parameter         | Units | Prior, where<br>($p_0, p_1, \dots$) = `prior_{variable}` | Default<br>`prior_{variable}` |
 | :---------------------------- | :---------------- | :---- | :------------------------------------------------------- | :---------------------------- |
-| `absorption_weight`           | Absorption weight | ``    | $w_\tau \sim {\rm Uniform}(0, 1)$                        | ``                            |
+| `filling_factor`              | Filling Factor    | ``    | $f \sim {\rm Uniform}(0, 1)$                             | ``                            |
+| `absorption_weight`           | Absorption weight | ``    | $w_\tau \sim {\rm Beta}(\alpha=0, \beta=1-f)$            | ``                            |
+
+The `filling_factor` parameter accounts for beam dilution in the emission spectrum. The expected brightness temperature contribution from a cloud is multiplied by `filling_factor`, which takes values between zero and one.
+
+The `absorption_weight` parameter accounts for the probability that a cloud that appears in the emission beam is not traced by the absorption sightline. The absorption optical depth of a cloud is multiplied by `absorption_weight`, which takes values between zero and one. The prior is chosen to require `absorption_weight=1` when `filling_factor=1`.
 
 ## `ordered`
 
@@ -151,6 +123,12 @@ If we assume that the emission is optically thin, then we can set `ordered=True`
 | Cloud Parameter<br>`variable` | Parameter | Units    | Prior, where<br>($p_0, p_1, \dots$) = `prior_{variable}`                 | Default<br>`prior_{variable}` |
 | :---------------------------- | :-------- | :------- | :----------------------------------------------------------------------- | :---------------------------- |
 | `velocity`                    | Velocity  | `km s-1` | $V_i \sim p_0 + \sum_0^{i-1} V_i + {\rm Gamma}(\alpha=2, \beta=1.0/p_1)$ | `[0.0, 1.0]`                  |
+
+## `fwhm_L`
+
+The `velocity` of a cloud can be challenging to identify when spectral lines are narrow and widely separated. We overcome this limitation by modeling the line profiles as a "pseudo-Voight" profile, which is a linear combination of a Gaussian and Lorentzian profile. The parameter `fwhm_L` is a latent hyper-parameter (shared among all clouds) that characterizes the width of the Lorentzian part of the line profile. When `fwhm_L` is zero, the line is perfectly Gaussian. This parameter produces line profile wings that may not be physical but nonetheless enable the optimization algorithms (i.e, MCMC) to converge more reliably and efficiently. Model solutions with non-zero `fwhm_L` should be scrutinized carefully. This feature can be turned off by supplying `None` (default) to `prior_fwhm_L`, in which case the line profiles are assumed Gaussian.
+
+It can also be useful to give Variational Inference a head-start by initializing it evenly spread over the velocity prior. Supply `start = {"velocity_norm", np.linspace(-3.0, 3.0, model.n_clouds)}` to `model.fit()` or in `init_kwargs` to `model.sample()`. Check out [the `bayes_spec` tutorial](https://bayes-spec.readthedocs.io/en/stable/notebooks/basic_tutorial.html) for an example.
 
 # Syntax & Examples
 
