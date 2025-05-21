@@ -24,6 +24,10 @@ Installation
    notebooks/absorption_model
    notebooks/emission_model
    notebooks/emission_absorption_model
+   notebooks/constant_column_density
+   notebooks/absorption_physical_model
+   notebooks/emission_physical_model
+   notebooks/emission_absorption_physical_model
    notebooks/optimization
 
 .. toctree::

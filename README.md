@@ -16,10 +16,14 @@ Read below to get started, and check out the tutorials and guides here: https://
   - [Development Installation](#development-installation)
 - [Notes on Physics \& Radiative Transfer](#notes-on-physics--radiative-transfer)
 - [Models](#models)
-  - [`AbsorptionModel`](#absorptionmodel)
-  - [`EmissionModel`](#emissionmodel)
-  - [`EmissionAbsorptionModel`](#emissionabsorptionmodel)
-  - [`ordered`](#ordered)
+  - [`HIModel`](#himodel)
+    - [`AbsorptionModel`](#absorptionmodel)
+    - [`EmissionModel`](#emissionmodel)
+    - [`EmissionAbsorptionModel`](#emissionabsorptionmodel)
+  - [`HIPhysicalModel`](#hiphysicalmodel)
+    - [`AbsorptionPhysicalModel`](#absorptionphysicalmodel)
+    - [`EmissionPhysicalModel`](#emissionphysicalmodel)
+    - [`EmissionAbsorptionPhysicalModel`](#emissionabsorptionphysicalmodel)
   - [`fwhm_L`](#fwhm_l)
 - [Syntax \& Examples](#syntax--examples)
 - [Issues and Contributing](#issues-and-contributing)
@@ -57,72 +61,117 @@ All models in `caribou_hi` apply the same physics and equations of radiative tra
 
 The 21-cm excitation temperature (also called the spin temperature) is derived from the gas kinetic temperature, gas density, and Ly&alpha; photon density following [Kim et al. (2014) equation 4](https://ui.adsabs.harvard.edu/abs/2014ApJ...786...64K/abstract).
 
-Clouds are assumed to be homogenous and isothermal. The ratio of the column density to the volume density, both free parameters, thus determines the path length through the cloud. The non-thermal line broadening assumes a Larson law relationship.
+Clouds are assumed to be homogenous and isothermal. The ratio of the column density to the volume density, both free parameters, thus determines the path length through the cloud. The non-thermal line broadening assumes a size-linewidth relationship. The clouds are assumed to have a log-normal column density distribution, such that the a cloud seen in absorption tends to have a *lower* column density than what is seen in emission.
 
 The optical depth and radiative transfer prescriptions follow that of [Marchal et al. (2019)](https://ui.adsabs.harvard.edu/abs/2019A%26A...626A.101M/abstract). By default, the clouds are ordered from *nearest* to *farthest*, so optical depth effects (i.e., self-absorption) may be present.
 
-Notably, since these are *forward models*, we do not make assumptions regarding the optical depth. These effects are *predicted* by the model. There is one exception: the `ordered` argument, [described below](#ordered).
+Notably, since these are *forward models*, we do not make assumptions regarding the optical depth. These effects are *predicted* by the model.
 
 # Models
 
 The models provided by `caribou_hi` are implemented in the [`bayes_spec`](https://github.com/tvwenger/bayes_spec) framework. `bayes_spec` assumes that the source of spectral line emission can be decomposed into a series of "clouds", each of which is defined by a set of model parameters. Here we define the models available in `caribou_hi`.
 
-## `AbsorptionModel`
+## `HIModel`
 
-Note that this model struggles to fit absorption-only data. We recommend sticking to `EmissionModel` and `EmissionAbsorptionModel`, so hopefully you have some emission data too!
+`HIModel` is the base "observational" `caribou_hi` model. `EmissionModel`, `AbsorptionModel`, and `EmissionAbsorptionModel` extend `HIModel`. This model is parameterized in terms of observational quantities such that it mimics the interpretation of traditional *inverse modeling* techniques. Note that this is still a *forward* model, but the observational quantities (i.e., brightness temperature) are treated as the "fundamental" parameters. The following table describes `HIModel` shared parameters in more detail.
 
-`AbsorptionModel` is a model that predicts 21-cm absorption spectra. The `SpecData` key for this model must be `absorption`. The following diagram demonstrates the relationship between the free parameters (empty ellipses), deterministic quantities (rectangles), model predictions (filled ellipses), and observations (filled, round rectangles). Many of the parameters are internally normalized (and thus have names like `_norm`). The subsequent tables describe the model parameters in more detail.
+| Cloud Parameter<br>`variable` | Parameter                               | Units     | Prior, where<br>($p_0, p_1, \dots$) = `prior_{variable}`     | Default<br>`prior_{variable}` |
+| :---------------------------- | :-------------------------------------- | :-------- | :----------------------------------------------------------- | :---------------------------- |
+| `fwhm2`                       | Square FWHM line width                  | `km2 s-2` | $\Delta V^2 \sim p\times{\rm ChiSquared}(\nu=1)$             | `500.0`                       |
+| `log10_nHI`                   | log10 HI volume density                 | `cm-3`    | $\log_{10}n_{\rm HI} \sim {\rm Normal}(\mu=p_0, \sigma=p_1)$ | `[0.0, 1.5]`                  |
+| `velocity`                    | Velocity (same reference frame as data) | `km s-1`  | $V \sim {\rm Normal}(\mu=p_0, \sigma=p_1)$                   | `[0.0, 10.0]`                 |
+| `log10_n_alpha`               | log10 Ly&alpha; photon density          | `cm-3`    | $\log_{10}n_\alpha \sim {\rm Normal}(\mu=p_0, \sigma=p_1)$   | `[-6.0, 2.0]`                 |
+| `fwhm_L`                      | Lorentzian FWHM line width              | `km s-1`  | $\Delta V_{L} \sim {\rm HalfNormal}(\sigma=p)$               | `None`                        |
+
+### `AbsorptionModel`
+
+`AbsorptionModel` is a model that predicts 21-cm absorption (`1-exp(-tau)`) spectra. `AbsorptionModel` extends `HIModel`. The `SpecData` key for this model must be `absorption`. The following diagram demonstrates the relationship between the free parameters (empty ellipses), deterministic quantities (rectangles), model predictions (filled ellipses), and observations (filled, round rectangles). Many of the parameters are internally normalized (and thus have names like `_norm`). The subsequent table describes the additional `AbsorptionModel` parameters in more detail.
 
 ![absorption model graph](docs/source/notebooks/absorption_model.png)
 
-| Cloud Parameter<br>`variable` | Parameter                                 | Units    | Prior, where<br>($p_0, p_1, \dots$) = `prior_{variable}`              | Default<br>`prior_{variable}` |
-| :---------------------------- | :---------------------------------------- | :------- | :-------------------------------------------------------------------- | :---------------------------- |
-| `log10_NHI`                   | log10 HI column density                   | `cm-2`   | $\log_{10}N_{\rm HI} \sim {\rm Normal}(\mu=p_0, \sigma=p_1)$          | `[20.0, 1.0]`                 |
-| `log10_depth`                 | log10 line-of-sight depth                 | `pc`     | $\log_{10}d \sim {\rm Normal}(\mu=p_0, \sigma=p_1)$                   | `[1.0, 1.0]`                  |
-| `log10_pressure`              | log10 pressure                            | `K cm-3` | $\log_{10}P_{\rm th} \sim {\rm Normal}(\mu=p_0, \sigma=p_1)$          | `[3.0, 1.0]`                  |
-| `velocity`                    | Velocity (same reference frame as data)   | `km s-1` | $V \sim {\rm Normal}(\mu=p_0, \sigma=p_1)$                            | `[0.0, 10.0]`                 |
-| `log10_nth_fwhm_1pc`          | Non-thermal FWHM at 1 pc                  | `km s-1` | $\log_{10}\Delta V_{\rm 1 pc} \sim {\rm Normal}(\mu=p_0, \sigma=p_1)$ | `[0.2, 0.1]`                  |
-| `depth_nth_fwhm_power`        | Nonthermal size-linewidth power law index | unitless | $\alpha \sim {\rm Gamma}(\mu=p_0, \sigma=p_1)$                        | `[0.3, 0.1]`                  |
+| Cloud Parameter<br>`variable` | Parameter                                      | Units    | Prior, where<br>($p_0, p_1, \dots$) = `prior_{variable}`    | Default<br>`prior_{variable}` |
+| :---------------------------- | :--------------------------------------------- | :------- | :---------------------------------------------------------- | :---------------------------- |
+| `tau_total`                   | Integrated optical depth                       | `km s-1` | $\int \tau_V dV \sim {\rm HalfNormal}(\sigma=p)$            | `10.0`                        |
+| `tkin_factor`                 | Kinetic temperature / max. kinetic temperature | ``       | $T_K/T_{K, \rm max} \sim {\rm Beta}(\alpha=p_0, \beta=p_1)$ | `[2.0, 2.0]`                  |
 
-| Hyper Parameter<br>`variable` | Parameter                      | Units    | Prior, where<br>($p_0, p_1, \dots$) = `prior_{variable}`   | Default<br>`prior_{variable}` |
-| :---------------------------- | :----------------------------- | :------- | :--------------------------------------------------------- | :---------------------------- |
-| `log10_n_alpha`               | log10 Ly&alpha; photon density | `cm-3`   | $\log_{10}n_\alpha \sim {\rm Normal}(\mu=p_0, \sigma=p_1)$ | `[-6.0, 1.0]`                 |
-| `fwhm_L`                      | Lorentzian FWHM line width     | `km s-1` | $\Delta V_{L} \sim {\rm HalfNormal}(\sigma=p)$             | `None`                        |
+The `tkin_factor` parameter sets the kinetic temperature in the range from zero to the maximum kinetic temperature allowed by the FWHM.
 
-The parameters describing the non-thermal line broadening, `log10_nth_fwhm_1pc` and `depth_nth_fwhm_power`, are treated as cloud parameters by default and with `hyper_depth_linewidth = False`. With `hyper_depth_linewidth = True`, however, these parameters are treated as hyper parameters (and thus shared between all clouds). The later imposes a bias by assuming that all clouds share the same size-linewidth relationship.
+### `EmissionModel`
 
-## `EmissionModel`
-
-`EmissionModel` is similar to `AbsorptionModel`, except it predicts 21-cm emission brightness temperature spectra. The `SpecData` key for this model must be `emission`. `EmissionModel` takes an additional initialization argument, `bg_temp`, which is the assumed background brightness temperature (by default it is `bg_temp=3.77`, an estimate for the cosmic microwave background and Galactic synchrotron emission at 21-cm). The following diagram demonstrates the model.
+`EmissionModel` is similar to `AbsorptionModel`, except it predicts 21-cm emission brightness temperature spectra. `EmissionModel` extends `HIModel`. The `SpecData` key for this model must be `emission`. `EmissionModel` takes an additional initialization argument, `bg_temp`, which is the assumed background brightness temperature (by default it is `bg_temp=3.77`, an estimate for the cosmic microwave background and Galactic synchrotron emission at 21-cm). The following diagram demonstrates the model, and the subsequent table describes the additional `EmissionModel` parameters.
 
 ![emission model graph](docs/source/notebooks/emission_model.png)
 
-## `EmissionAbsorptionModel`
+| Cloud Parameter<br>`variable` | Parameter                                      | Units      | Prior, where<br>($p_0, p_1, \dots$) = `prior_{variable}`    | Default<br>`prior_{variable}` |
+| :---------------------------- | :--------------------------------------------- | :--------- | :---------------------------------------------------------- | :---------------------------- |
+| `filling_factor`              | Filling factor                                 | ``         | $f \sim {\rm Uniform}(T_B/T_S, 1.0)$                        | ``                            |
+| `TB_fwhm`                     | Brightness temperature x FWHM                  | `K km s-1` | $T_B \Delta V \sim {\rm HalfNormal}(\sigma=p)$              | `1000.0`                      |
+| `tkin_factor`                 | Kinetic temperature / max. kinetic temperature | ``         | $T_K/T_{K, \rm max} \sim {\rm Beta}(\alpha=p_0, \beta=p_1)$ | `[2.0, 2.0]`                  |
 
-`EmissionAbsorptionModel` predicts both 21-cm emission (brightness temperature) and absorption (`1-exp(-tau)`) spectra. The `SpecData` keys must be `emission` and `absorption`.  `EmissionAbsorptionModel` takes an additional initialization argument, `bg_temp`, which is the assumed background brightness temperature (by default it is `bg_temp=3.77`, an estimate for the cosmic microwave background and Galactic synchrotron emission at 21-cm). The following diagram demonstrates the model, and the subsequent table describe the additional model parameters.
+The `filling_factor` parameter accounts for beam dilution in the emission spectrum. The expected brightness temperature contribution from a cloud is multiplied by `filling_factor`, which takes values between $f_{\rm min} = T_B/T_S$ and one.
 
-Note that the filling factor, $f$, is unconstrained, so the reported column densities are really $N_{\rm HI}/f$.
+The `tkin_factor` parameter sets the kinetic temperature in the range from $T_B$ to the maximum kinetic temperature allowed by the FWHM.
+
+### `EmissionAbsorptionModel`
+
+`EmissionAbsorptionModel` predicts both 21-cm emission (brightness temperature) and absorption (`1-exp(-tau)`) spectra. `EmissionAbsorptionModel` extends `EmissionModel`. The `SpecData` keys must be `emission` and `absorption`. The following diagram demonstrates the model, and the subsequent table describes the additional `EmissionAbsorptionModel` parameters.
 
 ![emission absorption model graph](docs/source/notebooks/emission_absorption_model.png)
 
-| Cloud Parameter<br>`variable` | Parameter         | Units | Prior, where<br>($p_0, p_1, \dots$) = `prior_{variable}` | Default<br>`prior_{variable}` |
-| :---------------------------- | :---------------- | :---- | :------------------------------------------------------- | :---------------------------- |
-| `filling_factor`              | Filling Factor    | ``    | $f \sim {\rm Uniform}(0, 1)$                             | ``                            |
-| `absorption_weight`           | Absorption weight | ``    | $w_\tau \sim {\rm Beta}(\alpha=0, \beta=1-f)$            | ``                            |
+| Cloud Parameter<br>`variable` | Parameter                                               | Units | Prior, where<br>($p_0, p_1, \dots$) = `prior_{variable}`                         | Default<br>`prior_{variable}`            |
+| :---------------------------- | :------------------------------------------------------ | :---- | :------------------------------------------------------------------------------- | :--------------------------------------- |
+| `log10_wt_ff_tkin`            | Absorption weight / (filling factor x spin temperature) | `K-1` | $\log_{10} f/(w_\tau T_s) \sim {\rm Normal}(\mu, \sigma_{\log_{10} N_{\rm HI}})$ | $\sigma_{\log_{10} N_{\rm HI}}$ = `None` |
 
-The `filling_factor` parameter accounts for beam dilution in the emission spectrum. The expected brightness temperature contribution from a cloud is multiplied by `filling_factor`, which takes values between zero and one.
+The `absorption_weight` parameter accounts for the difference between the column density probed in absorption and that probed in emission. Specifically, $N_{\rm HI, abs}/N_{\rm HI, em} = f/w_\tau$. By default, `absorption_weight` is assumed to be one; the column density seen in absorption is identical to that seen in emission. This is the default behavior, and when `prior_sigma_log10_NHI = None`. Otherwise, the absorption column density is drawn from a log-normal distribution with a width given by `prior_sigma_log10_NHI`. Note that the mode of this distribution is less than the mean, so the assumption of a log-normal column density will tend to decrease the column density probed by absorption.
 
-The `absorption_weight` parameter accounts for the probability that a cloud that appears in the emission beam is not traced by the absorption sightline. The absorption optical depth of a cloud is multiplied by `absorption_weight`, which takes values between zero and one. The prior is chosen to require `absorption_weight=1` when `filling_factor=1`.
+## `HIPhysicalModel`
 
-## `ordered`
+`HIPhysicalModel` is the base "physical" `caribou_hi` model. `EmissionPhysicalModel`, `AbsorptionPhysicalModel`, and `EmissionAbsorptionPhysicalModel` extend `HIModel`. This model is parameterized in terms of physical quantities, which enables us to include additional physical constraints such as a size-linewidth relationship. The assumed value for the size-linewidth power law index is set at initialization time by the parameter `depth_nth_fwhm_power`. The following table describes `HIPhysicalModel` shared parameters in more detail.
 
-An additional parameter to `set_priors` for these models is `ordered`. By default, this parameter is `False`, in which case the order of the clouds is from *nearest* to *farthest*. Sampling from these models can be challenging due to the labeling degeneracy: if the order of clouds does not matter (i.e., the emission is optically thin), then each Markov chain could decide on a different, equally-valid order of clouds.
+| Cloud Parameter<br>`variable` | Parameter                                 | Units     | Prior, where<br>($p_0, p_1, \dots$) = `prior_{variable}`                              | Default<br>`prior_{variable}` |
+| :---------------------------- | :---------------------------------------- | :-------- | :------------------------------------------------------------------------------------ | :---------------------------- |
+| `fwhm2`                       | Square FWHM line width                    | `km2 s-2` | $\Delta V^2 \sim p\times{\rm ChiSquared}(\nu=1)$                                      | `500.0`                       |
+| `velocity`                    | Velocity (same reference frame as data)   | `km s-1`  | $V \sim {\rm Normal}(\mu=p_0, \sigma=p_1)$                                            | `[0.0, 10.0]`                 |
+| `log10_n_alpha`               | log10 Ly&alpha; photon density            | `cm-3`    | $\log_{10}n_\alpha \sim {\rm Normal}(\mu=p_0, \sigma=p_1)$                            | `[-6.0, 2.0]`                 |
+| `nth_fwhm_1pc`                | Non-thermal FWHM line width at 1 pc depth | `km s-1`  | $\Delta V_{\rm nth} \sim {\rm TruncatedNormal}(\mu=p_0, \sigma=p_1, {\rm lower}=0.0)$ | `[1.75, 0.25]`                |
+| `fwhm_L`                      | Lorentzian FWHM line width                | `km s-1`  | $\Delta V_{L} \sim {\rm HalfNormal}(\sigma=p)$                                        | `None`                        |
 
-If we assume that the emission is optically thin, then we can set `ordered=True`, in which case the order of clouds is restricted to be increasing with velocity. This assumption can *drastically* improve sampling efficiency. When `ordered=True`, the `velocity` prior is defined differently:
+### `AbsorptionPhysicalModel`
 
-| Cloud Parameter<br>`variable` | Parameter | Units    | Prior, where<br>($p_0, p_1, \dots$) = `prior_{variable}`                 | Default<br>`prior_{variable}` |
-| :---------------------------- | :-------- | :------- | :----------------------------------------------------------------------- | :---------------------------- |
-| `velocity`                    | Velocity  | `km s-1` | $V_i \sim p_0 + \sum_0^{i-1} V_i + {\rm Gamma}(\alpha=2, \beta=1.0/p_1)$ | `[0.0, 1.0]`                  |
+`AbsorptionPhysicalModel` is a model that predicts 21-cm absorption (`1-exp(-tau)`) spectra. `AbsorptionPhysicalModel` extends `HIPhysicalModel`. The `SpecData` key for this model must be `absorption`. The following diagram demonstrates the relationship between the free parameters (empty ellipses), deterministic quantities (rectangles), model predictions (filled ellipses), and observations (filled, round rectangles). Many of the parameters are internally normalized (and thus have names like `_norm`). The subsequent table describes the additional `AbsorptionPhysicalModel` parameters in more detail.
+
+![absorption physical model graph](docs/source/notebooks/absorption_physical_model.png)
+
+| Cloud Parameter<br>`variable` | Parameter                       | Units          | Prior, where<br>($p_0, p_1, \dots$) = `prior_{variable}`                | Default<br>`prior_{variable}` |
+| :---------------------------- | :------------------------------ | :------------- | :---------------------------------------------------------------------- | :---------------------------- |
+| `NHI_fwhm2_thermal`           | Column density / thermal FWHM^2 | `cm-2 km-2 s2` | $N_{\rm HI}/\Delta V_{\rm th}^2 \sim {\rm HalfNormal}(\sigma=p)$        | `1.0e20`                      |
+| `fwhm2_thermal_fraction`      | Thermal FWHM^2 / total FWHM^2   | ``             | $\Delta V_{\rm th}^2/\Delta V^2 \sim {\rm Beta}(\alpha=p_0, \beta=p_1)$ | `[2.0, 2.0]`                  |
+
+### `EmissionPhysicalModel`
+
+`EmissionPhysicalModel` is similar to `AbsorptionModel`, except it predicts 21-cm emission brightness temperature spectra. `EmissionPhysicalModel` extends `HIPhysicalModel`. The `SpecData` key for this model must be `emission`. `EmissionModel` takes an additional initialization argument, `bg_temp`, which is the assumed background brightness temperature (by default it is `bg_temp=3.77`, an estimate for the cosmic microwave background and Galactic synchrotron emission at 21-cm). The following diagram demonstrates the model, and the subsequent table describes the additional `EmissionPhysicalModel` parameters.
+
+![emission physical model graph](docs/source/notebooks/emission_physical_model.png)
+
+| Cloud Parameter<br>`variable` | Parameter                       | Units  | Prior, where<br>($p_0, p_1, \dots$) = `prior_{variable}`                | Default<br>`prior_{variable}` |
+| :---------------------------- | :------------------------------ | :----- | :---------------------------------------------------------------------- | :---------------------------- |
+| `filling_factor`              | Filling factor                  | ``     | $f \sim {\rm Uniform}(T_B/T_S, 1.0)$                                    | ``                            |
+| `ff_NHI`                      | Filling factor x column density | `cm-2` | $f N_{\rm HI} \sim {\rm HalfNormal}(\sigma=p)$                          | `1.0e21`                      |
+| `fwhm2_thermal_fraction`      | Thermal FWHM^2 / total FWHM^2   | ``     | $\Delta V_{\rm th}^2/\Delta V^2 \sim {\rm Beta}(\alpha=p_0, \beta=p_1)$ | `[2.0, 2.0]`                  |
+
+The `fwhm2_thermal_fraction` parameter sets the thermal line width in the range from the minimum, set by the optically thin brightness temperature, to the total line width.
+
+### `EmissionAbsorptionPhysicalModel`
+
+`EmissionAbsorptionPhysicalModel` predicts both 21-cm emission (brightness temperature) and absorption (`1-exp(-tau)`) spectra. `EmissionAbsorptionPhysicalModel` extends `EmissionPhysicalModel`. The `SpecData` keys must be `emission` and `absorption`. The following diagram demonstrates the model, and the subsequent table describes the additional `EmissionAbsorptionPhysicalModel` parameters.
+
+![emission absorption physical model graph](docs/source/notebooks/emission_absorption_physical_model.png)
+
+| Cloud Parameter<br>`variable` | Parameter                                               | Units | Prior, where<br>($p_0, p_1, \dots$) = `prior_{variable}`                         | Default<br>`prior_{variable}`           |
+| :---------------------------- | :------------------------------------------------------ | :---- | :------------------------------------------------------------------------------- | :-------------------------------------- |
+| `log10_wt_ff_tkin`            | Absorption weight / (filling factor x spin temperature) | `K-1` | $\log_{10} f/(w_\tau T_s) \sim {\rm Normal}(\mu, \sigma_{\log_{10} N_{\rm HI}})$ | $\sigma_{\log_{10} N_{\rm HI}}$ = `0.5` |
+
+The `absorption_weight` parameter accounts for the difference between the column density probed in absorption and that probed in emission. Specifically, $N_{\rm HI, abs}/N_{\rm HI, em} = f/w_\tau$. The absorption column density is drawn from a log-normal distribution with a width given by `prior_sigma_log10_NHI`.
 
 ## `fwhm_L`
 
@@ -140,19 +189,8 @@ Anyone is welcome to submit issues or contribute to the development of this soft
 
 # License and Copyright
 
-Copyright (c) 2024 Trey Wenger
+Copyright (c) 2024-2025 Trey Wenger
 
-GNU General Public License v3 (GNU GPLv3)
+Trey V. Wenger; tvwenger@gmail.com
 
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published
-by the Free Software Foundation, either version 3 of the License,
-or (at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
+This code is licensed under MIT license (see LICENSE for details)
