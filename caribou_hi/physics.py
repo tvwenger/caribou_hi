@@ -106,7 +106,7 @@ def calc_spin_temp(kinetic_temp: float, density: float, n_alpha: float) -> float
     return spin_temp
 
 
-def calc_thermal_fwhm(kinetic_temp: float) -> float:
+def calc_thermal_fwhm2(kinetic_temp: float) -> float:
     """Calculate the thermal line broadening assuming a Maxwellian velocity distribution
     (Condon & Ransom eq. 7.35)
 
@@ -118,10 +118,29 @@ def calc_thermal_fwhm(kinetic_temp: float) -> float:
     Returns
     -------
     float
-        Thermal FWHM line width (km s-1)
+        Thermal FWHM^2 line width (km2 s-2)
     """
     const = 0.2139  # km/s K-1/2
-    return const * pt.sqrt(kinetic_temp)
+    return const**2 * kinetic_temp
+
+
+def calc_kinetic_temp(thermal_fwhm2: float) -> float:
+    """Calculate the kinetic temperature from the thermal line broadening. This
+    is the inverse of calc_thermal_fwhm.
+    (Condon & Ransom eq. 7.35)
+
+    Parameters
+    ----------
+    thermal_fwhm2 : float
+        Thermal FWHM^2 (km2 s-2)
+
+    Returns
+    -------
+    float
+        Kinetic temperature (K)
+    """
+    const = 0.2139  # km/s K-1/2
+    return thermal_fwhm2 / const**2
 
 
 def calc_nonthermal_fwhm(
@@ -146,10 +165,107 @@ def calc_nonthermal_fwhm(
     return nth_fwhm_1pc * depth**depth_nth_fwhm_power
 
 
+def calc_depth_nonthermal(
+    fwhm_nonthermal: float, nth_fwhm_1pc: float, depth_nth_fwhm_power: float
+) -> float:
+    """Calculate the line-of-sight depth from the non-thermal line broadening. This is the
+    inverse of calc_nonthermal_fwhm.
+
+    Parameters
+    ----------
+    fwhm_nonthermal : float
+        Non-thermal FWHM line width (km s-1)
+    nth_fwhm_1pc : float
+        Non-thermal line width at 1 pc(km s-1)
+    depth_nth_fwhm_power : float
+        Depth vs. non-thermal line width power law index
+
+    Returns
+    -------
+    float
+        Line-of-sight depth (pc)
+    """
+    return (fwhm_nonthermal / nth_fwhm_1pc) ** (1.0 / depth_nth_fwhm_power)
+
+
+def calc_log10_column_density(tau_total: float, spin_temp: float) -> float:
+    """Calculate the column density.
+
+    Parameters
+    ----------
+    tau_total : float
+        Total optical depth
+    spin_temp : float
+        Spin temperature (K)
+
+    Returns
+    -------
+    float
+        log10 column density (cm-2)
+    """
+    const = 1.82243e18  # cm-2 (K km s-1)-1
+    return pt.log10(const * spin_temp * tau_total)
+
+
+def calc_log10_density(log10_column_density: float, log10_depth: float):
+    """Calculate the density.
+
+    Parameters
+    ----------
+    log10_column_density : float
+        log10 column density (cm-2)
+    log10_depth : float
+        log10 depth (pc)
+
+    Returns
+    -------
+    float
+        log10 volume density (cm-3)
+    """
+    return log10_column_density - log10_depth - 18.489351
+
+
+def calc_tau_total(column_density: float, spin_temp: float) -> float:
+    """Calculate the total optical depth.
+
+    Parameters
+    ----------
+    column_density : float
+        Column density (cm-2)
+    spin_temp : float
+        Spin temperature (K)
+
+    Returns
+    -------
+    float
+        total optical depth
+    """
+    const = 1.82243e18  # cm-2 (K km s-1)-1
+    return column_density / spin_temp / const
+
+
+def calc_log10_nonthermal_pressure(log10_density, fwhm2_nonthermal):
+    """Calculate the non-thermal pressure.
+
+    Parameters
+    ----------
+    log10_column_density : float
+        log10 column density (cm-2)
+    fwhm2_nonthermal : float
+        Non-thermal FWHM^2 (km2 s-2)
+
+    Returns
+    -------
+    float
+        log10 non-thermal pressure (K cm-3)
+    """
+    return np.log10(671.8) + log10_density + pt.log10(fwhm2_nonthermal)
+
+
 def calc_pseudo_voigt(
     velo_axis: Iterable[float],
     velocity: Iterable[float],
-    fwhm: Iterable[float],
+    fwhm2: Iterable[float],
     fwhm_L: float,
 ) -> Iterable[float]:
     """Evaluate a pseudo Voight profile in order to aid in posterior exploration
@@ -165,8 +281,8 @@ def calc_pseudo_voigt(
         Observed velocity axis (km s-1; length S)
     velocity : Iterable[float]
         Cloud center velocity (km s-1; length N)
-    fwhm : Iterable[float]
-        Cloud FWHM line widths (km s-1; length N)
+    fwhm2 : Iterable[float]
+        Cloud FWHM^2 line widths (km2 s-2; length N)
     fwhm_L : float
         Latent pseudo-Voigt profile Lorentzian FWHM (km s-1)
 
@@ -177,7 +293,7 @@ def calc_pseudo_voigt(
     """
     channel_size = pt.abs(velo_axis[1] - velo_axis[0])
     channel_fwhm = 4.0 * np.log(2.0) * channel_size / np.pi
-    fwhm_conv = pt.sqrt(fwhm**2.0 + channel_fwhm**2.0 + fwhm_L**2.0)
+    fwhm_conv = pt.sqrt(fwhm2 + channel_fwhm**2.0 + fwhm_L**2.0)
     fwhm_L_frac = fwhm_L / fwhm_conv
     eta = (
         1.36603 * fwhm_L_frac - 0.47719 * fwhm_L_frac**2.0 + 0.11116 * fwhm_L_frac**3.0
@@ -191,76 +307,6 @@ def calc_pseudo_voigt(
 
     # linear combination
     return eta * lorentz_part + (1.0 - eta) * gauss_part
-
-
-def calc_line_profile(
-    velo_axis: Iterable[float], velocity: Iterable[float], fwhm: Iterable[float]
-) -> Iterable[float]:
-    """Evaluate the Gaussian line profile. We also consider the spectral
-    channelization. We do not perform a full boxcar convolution, rather
-    we approximate the convolution by assuming an equivalent FWHM for the
-    boxcar kernel of 4 ln(2) / pi * channel_width ~= 0.88 * channel_width
-
-    Parameters
-    ----------
-    velo_axis : Iterable[float]
-        Observed velocity axis (km s-1; length S)
-    velocity : Iterable[float]
-        Cloud center velocity (km s-1; length C x N)
-    fwhm : Iterable[float]
-        Cloud FWHM line widths (km s-1; length C x N)
-
-    Returns
-    -------
-    Iterable[float]
-        Line profile (km-1 s; shape S x N)
-    """
-    channel_size = pt.abs(velo_axis[1] - velo_axis[0])
-    channel_fwhm = 4.0 * np.log(2.0) * channel_size / np.pi
-    fwhm_conv = pt.sqrt(fwhm**2.0 + channel_fwhm**2.0)
-    profile = gaussian(velo_axis[:, None], velocity, fwhm_conv)
-    return profile
-
-
-def calc_optical_depth(
-    velo_axis: Iterable[float],
-    velocity: Iterable[float],
-    NHI: Iterable[float],
-    tspin: Iterable[float],
-    fwhm: Iterable[float],
-    fwhm_L: float,
-) -> Iterable[float]:
-    """Evaluate the optical depth spectra following Marchal et al. (2019) eq. 15
-    assuming a homogeneous and isothermal cloud.
-
-    Parameters
-    ----------
-    velo_axis : Iterable[float]
-        Observed velocity axis (km s-1) (length S)
-    velocity : Iterable[float]
-        Cloud velocities (km s-1) (length N)
-    NHI : Iterable[float]
-        HI column density (cm-2) (length N)
-    tspin : Iterable[float]
-        Spin tempearture (K) (length N)
-    fwhm : Iterable[float]
-        FWHM line width (km s-1)
-    fwhm_L : float
-        Latent pseudo-Voigt profile Lorentzian FWHM (km s-1)
-
-    Returns
-    -------
-    Iterable[float]
-        Optical depth spectra (shape S x N)
-    """
-    # Evaluate line profile
-    # line_profile = calc_line_profile(velo_axis, velocity, fwhm)
-    line_profile = calc_pseudo_voigt(velo_axis, velocity, fwhm, fwhm_L)
-
-    # Evaluate the optical depth spectra
-    const = 1.82243e18  # cm-2 (K km s-1)-1
-    optical_depth = NHI * line_profile / tspin / const
-    return optical_depth
 
 
 def radiative_transfer(

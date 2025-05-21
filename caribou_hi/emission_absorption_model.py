@@ -7,88 +7,96 @@ Trey V. Wenger; tvwenger@gmail.com
 This code is licensed under MIT license (see LICENSE for details)
 """
 
+from typing import Optional
+
+import numpy as np
+
 import pymc as pm
 import pytensor.tensor as pt
 
-from caribou_hi.hi_model import HIModel
+from caribou_hi import EmissionModel
 from caribou_hi import physics
 
 
-class EmissionAbsorptionModel(HIModel):
+class EmissionAbsorptionModel(EmissionModel):
     """Definition of the EmissionAbsorptionModel model. SpecData keys must be "emission" and "absorption"."""
 
-    def __init__(self, *args, bg_temp: float = 3.77, **kwargs):
-        """Initialize a new EmissionAbsorptionModel instance
+    def add_priors(
+        self,
+        prior_sigma_log10_NHI: Optional[float] = None,
+        *args,
+        **kwargs,
+    ):
+        """Add priors and deterministics to the model
 
         Parameters
         ----------
-        bg_temp : float, optional
-            Assumed background temperature (K), by default 3.77
+        prior_sigma_log10_NHI : Optional[float], optional
+            Shape parameter that defines the prior distribution on
+            absorption weight / filling factor / kinetic temperature, by default None, where
+            log10(ff/ww/tkin) ~ Normal(mu=-ln(10)*prior^2/2-log10(tkin), sigma=prior)
+            i.e., assuming the cloud has a log-normal column density distribution with this width
+            If None, then the absorption weight is assumed to be 1 (i.e., same column density
+            probed in emission and absorption)
         """
-        # Initialize HIModel
-        super().__init__(*args, **kwargs)
-
-        # Save inputs
-        self.bg_temp = bg_temp
-
-        # Define TeX representation of each parameter
-        self.var_name_map.update(
-            {
-                "filling_factor": r"$f$",
-                "absorption_weight": r"$w_\tau$",
-            }
-        )
-
-    def add_priors(self, *args, **kwargs):
-        """Add priors and deterministics to the model"""
+        # Add EmissionModel priors
         super().add_priors(*args, **kwargs)
 
         with self.model:
-            # Filling factor
-            filling_factor = pm.Beta(
-                "filling_factor", alpha=1.0, beta=1.0, dims="cloud"
-            )
+            if prior_sigma_log10_NHI is None:
+                _ = pm.Data("absorption_weight", np.ones(self.n_clouds), dims="cloud")
+            else:
+                # Absorption weight / filling factor / tkin (K-1; shape: clouds)
+                mu = -np.log(10.0) * prior_sigma_log10_NHI**2.0 / 2.0 - pt.log10(
+                    self.model["tkin"]
+                )
+                log10_wt_ff_tkin = pm.Normal(
+                    "log10_wt_ff_tkin", mu=mu, sigma=prior_sigma_log10_NHI, dims="cloud"
+                )
 
-            # Absorption weight
-            _ = pm.Beta(
-                "absorption_weight",
-                alpha=1.0,
-                beta=1.0 - filling_factor,
-                dims="cloud",
-            )
+                # Absorption weight (shape: clouds)
+                _ = pm.Deterministic(
+                    "absorption_weight",
+                    10.0**log10_wt_ff_tkin
+                    * self.model["filling_factor"]
+                    * self.model["tkin"],
+                    dims="cloud",
+                )
 
     def add_likelihood(self):
-        """Add likelihood to the model. SpecData key must be "emission"."""
-        # Predict optical depth spectrum (shape: spectral, clouds)
-        absorption_optical_depth = self.model["absorption_weight"] * (
-            physics.calc_optical_depth(
-                self.data["absorption"].spectral,
-                self.model["velocity"],
-                10.0 ** self.model["log10_NHI"],
-                self.model["tspin"],
-                self.model["fwhm"],
-                self.model["fwhm_L"],
-            )
-        )
-        emission_optical_depth = physics.calc_optical_depth(
+        """Add likelihood to the model. SpecData key must be "emission" and "absorption"."""
+        # Evaluate line profile (shape: spectral, clouds)
+        line_profile_emission = physics.calc_pseudo_voigt(
             self.data["emission"].spectral,
             self.model["velocity"],
-            10.0 ** self.model["log10_NHI"],
-            self.model["tspin"],
-            self.model["fwhm"],
+            self.model["fwhm2"],
+            self.model["fwhm_L"],
+        )
+        line_profile_absorption = physics.calc_pseudo_voigt(
+            self.data["absorption"].spectral,
+            self.model["velocity"],
+            self.model["fwhm2"],
             self.model["fwhm_L"],
         )
 
-        # Sum over clouds
-        predicted_absorption = 1.0 - pt.exp(-absorption_optical_depth.sum(axis=1))
+        # Optical depth spectra (shape: spectral, clouds)
+        optical_depth_emission = self.model["tau_total"] * line_profile_emission
+        optical_depth_absorption = (
+            self.model["absorption_weight"]
+            * self.model["tau_total"]
+            * line_profile_absorption
+        )
 
         # Evaluate radiative transfer
         predicted_emission = physics.radiative_transfer(
-            emission_optical_depth,
+            optical_depth_emission,
             self.model["tspin"],
             self.model["filling_factor"],
             self.bg_temp,
         )
+
+        # Predict absorption
+        predicted_absorption = 1.0 - pt.exp(-optical_depth_absorption.sum(axis=1))
 
         # Add baseline models
         baseline_models = self.predict_baseline()
