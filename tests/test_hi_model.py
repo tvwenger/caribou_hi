@@ -59,3 +59,17 @@ def test_emission_absorption_model():
     model.add_priors()
     model.add_likelihood()
     assert model._validate()
+    
+def test_emission_absorption_model_lognormal():
+    emission_velocity = np.linspace(-20.0, 20.0, 1000)
+    absorption_velocity = np.linspace(-20.0, 20.0, 500)
+    emission = np.random.randn(1000)
+    absorption = np.random.randn(500)
+    data = {
+        "emission": SpecData(emission_velocity, emission, 1.0),
+        "absorption": SpecData(absorption_velocity, absorption, 1.0),
+    }
+    model = EmissionAbsorptionModel(data, 2, baseline_degree=1)
+    model.add_priors(prior_sigma_log10_NHI=0.5)
+    model.add_likelihood()
+    assert model._validate()
