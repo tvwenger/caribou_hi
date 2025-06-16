@@ -37,7 +37,7 @@ class EmissionModel(HIModel):
 
     def add_priors(
         self,
-        prior_TB_fwhm: float = 1000.0,
+        prior_TB_fwhm: float = 50.0,
         prior_tkin_factor: Iterable[float] = [2.0, 2.0],
         *args,
         **kwargs,
@@ -47,7 +47,7 @@ class EmissionModel(HIModel):
         Parameters
         ----------
         prior_TB_fwhm : float, optional
-            Prior distribution on brightness temperature x FWHM (K km s), by default 1000.0, where
+            Prior distribution on brightness temperature x FWHM (K km s), by default 50.0, where
             TB_fwhm ~ HalfNormal(sigma=prior)
         prior_tkin_factor : Iterable[float], optional
             Prior distribution on kinetic temperature factor, by default [2.0, 2.0], where
@@ -95,7 +95,7 @@ class EmissionModel(HIModel):
                 physics.calc_spin_temp(
                     tkin,
                     10.0 ** self.model["log10_nHI"],
-                    10.0 ** self.model["log10_n_alpha"],
+                    self.model["n_alpha"],
                 ),
                 dims="cloud",
             )

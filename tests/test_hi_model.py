@@ -59,7 +59,8 @@ def test_emission_absorption_model():
     model.add_priors()
     model.add_likelihood()
     assert model._validate()
-    
+
+
 def test_emission_absorption_model_lognormal():
     emission_velocity = np.linspace(-20.0, 20.0, 1000)
     absorption_velocity = np.linspace(-20.0, 20.0, 500)
