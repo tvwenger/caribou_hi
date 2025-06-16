@@ -21,7 +21,7 @@ class AbsorptionModel(HIModel):
 
     def add_priors(
         self,
-        prior_tau_total: float = 10.0,
+        prior_tau_total: float = 1.0,
         prior_tkin_factor: Iterable[float] = [2.0, 2.0],
         *args,
         **kwargs,
@@ -31,7 +31,7 @@ class AbsorptionModel(HIModel):
         Parameters
         ----------
         prior_tau_total : float, optional
-            Prior distribution on total optical depth (km s-1), by default 10.0, where
+            Prior distribution on total optical depth (km s-1), by default 1.0, where
             tau_total ~ HalfNormal(sigma=prior)
         prior_tkin_factor : Iterable[float], optional
             Prior distribution on kinetic temperature factor, by default [2.0, 2.0], where
@@ -66,7 +66,7 @@ class AbsorptionModel(HIModel):
                 physics.calc_spin_temp(
                     tkin,
                     10.0 ** self.model["log10_nHI"],
-                    10.0 ** self.model["log10_n_alpha"],
+                    self.model["n_alpha"],
                 ),
                 dims="cloud",
             )

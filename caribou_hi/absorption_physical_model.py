@@ -63,16 +63,59 @@ class AbsorptionPhysicalModel(HIPhysicalModel):
             )
 
             # Kinetic temperature
-            _ = pm.Deterministic(
+            tkin = pm.Deterministic(
                 "tkin",
                 physics.calc_kinetic_temp(fwhm2_thermal),
                 dims="cloud",
             )
 
+            # Non-thermal FWHM2 (km2 s-2; shape: clouds)
+            fwhm2_nonthermal = pm.Deterministic(
+                "fwhm2_nonthermal",
+                self.model["fwhm2"] - fwhm2_thermal,
+                dims="cloud",
+            )
+
+            # Depth (pc; shape: clouds)
+            depth = pm.Deterministic(
+                "depth",
+                physics.calc_depth_nonthermal(
+                    pt.sqrt(fwhm2_nonthermal),
+                    self.model["nth_fwhm_1pc"],
+                    self.depth_nth_fwhm_power,
+                ),
+                dims="cloud",
+            )
+
             # Column density (cm-2; shape: clouds)
-            _ = pm.Deterministic(
+            log10_NHI = pm.Deterministic(
                 "log10_NHI",
                 pt.log10(NHI_fwhm2_thermal * fwhm2_thermal),
+                dims="cloud",
+            )
+
+            # density (cm-3; shape: clouds)
+            log10_nHI = pm.Deterministic(
+                "log10_nHI",
+                physics.calc_log10_density(log10_NHI, pt.log10(depth)),
+                dims="cloud",
+            )
+
+            # Spin temperature (K; shape: clouds)
+            tspin = pm.Deterministic(
+                "tspin",
+                physics.calc_spin_temp(
+                    tkin,
+                    10.0**log10_nHI,
+                    self.model["n_alpha"],
+                ),
+                dims="cloud",
+            )
+
+            # total optical depth (km s-1; shape: clouds)
+            _ = pm.Deterministic(
+                "tau_total",
+                physics.calc_tau_total(10.0**log10_NHI, tspin),
                 dims="cloud",
             )
 

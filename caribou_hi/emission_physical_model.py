@@ -9,8 +9,6 @@ This code is licensed under MIT license (see LICENSE for details)
 
 from typing import Iterable
 
-import numpy as np
-
 import pytensor.tensor as pt
 import pymc as pm
 from caribou_hi import physics
@@ -61,31 +59,11 @@ class EmissionPhysicalModel(HIPhysicalModel):
             ff_NHI_norm = pm.HalfNormal("ff_NHI_norm", sigma=1.0, dims="cloud")
             ff_NHI = prior_ff_NHI * ff_NHI_norm
 
-            # Minimum kinetic (brightness) temperature (K; shape: clouds)
-            const_N = 1.82243e18  # cm-2 (K km s-1)-1
-            const_G = np.sqrt(2.0 * np.pi) / (2.0 * np.sqrt(2.0 * np.log(2.0)))
-            tkin_min = (ff_NHI / const_N) / (const_G * pt.sqrt(self.model["fwhm2"]))
-
-            # minimum thermal FWHM^2 fraction (shape: clouds)
-            fwhm2_thermal_fraction_min = (
-                physics.calc_thermal_fwhm2(tkin_min) / self.model["fwhm2"]
-            )
-
             # thermal FWHM^2 fraction (shape: clouds)
-            fwhm2_thermal_fraction_norm = pm.Beta(
-                "fwhm2_thermal_fraction_norm",
+            fwhm2_thermal_fraction = pm.Beta(
+                "fwhm2_thermal_fraction",
                 alpha=prior_fwhm2_thermal_fraction[0],
                 beta=prior_fwhm2_thermal_fraction[1],
-                dims="cloud",
-            )
-            fwhm2_thermal_fraction = pm.Deterministic(
-                "fwhm2_thermal_fraction",
-                pt.switch(
-                    pt.gt(fwhm2_thermal_fraction_min, 1.0),
-                    1.0,
-                    fwhm2_thermal_fraction_norm * (1.0 - fwhm2_thermal_fraction_min)
-                    + fwhm2_thermal_fraction_min,
-                ),
                 dims="cloud",
             )
 
@@ -103,28 +81,58 @@ class EmissionPhysicalModel(HIPhysicalModel):
                 dims="cloud",
             )
 
-            # Minimum filling factor = TB,min / Tkin
-            filling_factor_min = tkin_min / tkin
-
             # filling factor
-            filling_factor_norm = pm.Uniform(
-                "filling_factor_norm", lower=0.0, upper=1.0, dims="cloud"
+            filling_factor = pm.Uniform(
+                "filling_factor", lower=0.0, upper=1.0, dims="cloud"
             )
-            filling_factor = pm.Deterministic(
-                "filling_factor",
-                pt.switch(
-                    pt.gt(filling_factor_min, 1.0),
-                    1.0,
-                    filling_factor_norm * (1.0 - filling_factor_min)
-                    + filling_factor_min,
+
+            # Non-thermal FWHM2 (km2 s-2; shape: clouds)
+            fwhm2_nonthermal = pm.Deterministic(
+                "fwhm2_nonthermal",
+                self.model["fwhm2"] - fwhm2_thermal,
+                dims="cloud",
+            )
+
+            # Depth (pc; shape: clouds)
+            depth = pm.Deterministic(
+                "depth",
+                physics.calc_depth_nonthermal(
+                    pt.sqrt(fwhm2_nonthermal),
+                    self.model["nth_fwhm_1pc"],
+                    self.depth_nth_fwhm_power,
                 ),
                 dims="cloud",
             )
 
-            # column density (cm-2; shape: clouds)
-            _ = pm.Deterministic(
+            # Column density (cm-2; shape: clouds)
+            log10_NHI = pm.Deterministic(
                 "log10_NHI",
                 pt.log10(ff_NHI / filling_factor),
+                dims="cloud",
+            )
+
+            # density (cm-3; shape: clouds)
+            log10_nHI = pm.Deterministic(
+                "log10_nHI",
+                physics.calc_log10_density(log10_NHI, pt.log10(depth)),
+                dims="cloud",
+            )
+
+            # Spin temperature (K; shape: clouds)
+            tspin = pm.Deterministic(
+                "tspin",
+                physics.calc_spin_temp(
+                    tkin,
+                    10.0**log10_nHI,
+                    self.model["n_alpha"],
+                ),
+                dims="cloud",
+            )
+
+            # total optical depth (km s-1; shape: clouds)
+            _ = pm.Deterministic(
+                "tau_total",
+                physics.calc_tau_total(10.0**log10_NHI, tspin),
                 dims="cloud",
             )
 
