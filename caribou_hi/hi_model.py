@@ -58,7 +58,7 @@ class HIModel(BaseModel):
         self,
         prior_fwhm2: float = 200.0,
         prior_log10_nHI: Iterable[float] = [0.0, 1.5],
-        prior_velocity: Iterable[float] = [0.0, 10.0],
+        prior_velocity: Iterable[float] = [-10.0, 10.0],
         prior_n_alpha: float = 1.0e-6,
         prior_fwhm_L: Optional[float] = None,
         prior_baseline_coeffs: Optional[dict[str, Iterable[float]]] = None,
@@ -75,8 +75,9 @@ class HIModel(BaseModel):
             Prior distribution on log10 volume density (cm-3), by default [0.0, 1.5], where
             log10_nHI ~ Normal(mu=prior[0], sigma=prior[1])
         prior_velocity : Iterable[float], optional
-            Prior distribution on centroid velocity (km s-1), by default [0.0, 10.0], where
-            velocity ~ Normal(mu=prior[0], sigma=prior[1])
+            Prior distribution on centroid velocity (km s-1), by default [-10.0, 10.0], where
+            velocity_norm ~ Beta(alpha=2.0, beta=2.0)
+            velocity ~ prior[0] + (prior[1] - prior[0]) * velocity_norm
         prior_n_alpha : Iterable[float], optional
             Prior distribution on n_alpha (cm-3), by default 1.0e-6, where
             n_alpha ~ HalfNormal(sigma=prior)
@@ -109,10 +110,11 @@ class HIModel(BaseModel):
             )
 
             # Velocity (km/s; shape: clouds)
-            velocity_norm = pm.Normal("velocity_norm", mu=0.0, sigma=1.0, dims="cloud")
+            velocity_norm = pm.Beta("velocity_norm", alpha=2.0, beta=2.0, dims="cloud")
             _ = pm.Deterministic(
                 "velocity",
-                prior_velocity[0] + prior_velocity[1] * velocity_norm,
+                prior_velocity[0]
+                + (prior_velocity[1] - prior_velocity[0]) * velocity_norm,
                 dims="cloud",
             )
 

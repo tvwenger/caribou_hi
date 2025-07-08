@@ -359,7 +359,7 @@ def radiative_transfer(
     # Attenuation by foreground clouds (shape S, N)
     # [TB(N=0), TB(N=1)*exp(-tau(N=0)), TB(N=2)*exp(-tau(N=0)-tau(N=1)), ...]
     emission_clouds_attenuated = emission_clouds * attenuation[..., :-1]
-    emission = emission_bg_attenuated + emission_clouds_attenuated.sum(axis=1)
+    emission = emission_bg_attenuated + emission_clouds_attenuated.sum(axis=-1)
 
     # ON - OFF
     return emission - bg_temp
