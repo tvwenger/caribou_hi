@@ -24,4 +24,4 @@ dependencies:
     - "sphinx_rtd_theme"
     - "nbsphinx"
     - "numpydoc"
-    - "bayes_spec>=1.8.0"
+    - "bayes_spec>=1.9.0"
