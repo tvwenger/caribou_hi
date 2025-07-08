@@ -300,10 +300,10 @@ def calc_pseudo_voigt(
     )
 
     # gaussian component
-    gauss_part = gaussian(velo_axis[:, None], velocity, fwhm_conv)
+    gauss_part = gaussian(velo_axis[:, None], velocity[None, :], fwhm_conv[None, :])
 
     # lorentzian component
-    lorentz_part = lorentzian(velo_axis[:, None], velocity, fwhm_conv)
+    lorentz_part = lorentzian(velo_axis[:, None], velocity[None, :], fwhm_conv[None, :])
 
     # linear combination
     return eta * lorentz_part + (1.0 - eta) * gauss_part
@@ -359,7 +359,7 @@ def radiative_transfer(
     # Attenuation by foreground clouds (shape S, N)
     # [TB(N=0), TB(N=1)*exp(-tau(N=0)), TB(N=2)*exp(-tau(N=0)-tau(N=1)), ...]
     emission_clouds_attenuated = emission_clouds * attenuation[..., :-1]
-    emission = emission_bg_attenuated + emission_clouds_attenuated.sum(axis=1)
+    emission = emission_bg_attenuated + emission_clouds_attenuated.sum(axis=-1)
 
     # ON - OFF
     return emission - bg_temp
