@@ -79,7 +79,7 @@ The models provided by `caribou_hi` are implemented in the [`bayes_spec`](https:
 | :---------------------------- | :-------------------------------------- | :-------- | :----------------------------------------------------------- | :---------------------------- |
 | `fwhm2`                       | Square FWHM line width                  | `km2 s-2` | $\Delta V^2 \sim p\times{\rm ChiSquared}(\nu=1)$             | `200.0`                       |
 | `log10_nHI`                   | log10 HI volume density                 | `cm-3`    | $\log_{10}n_{\rm HI} \sim {\rm Normal}(\mu=p_0, \sigma=p_1)$ | `[0.0, 1.5]`                  |
-| `velocity`                    | Velocity (same reference frame as data) | `km s-1`  | $V \sim {\rm Normal}(\mu=p_0, \sigma=p_1)$                   | `[0.0, 10.0]`                 |
+| `velocity`                    | Velocity (same reference frame as data) | `km s-1`  | $V \sim p_0 + (p_1 - p_0) {\rm Beta}(\alpha=2, \beta=2)$                   | `[-10.0, 10.0]`                 |
 | `n_alpha`                     | Ly&alpha; photon density                | `cm-3`    | $n_\alpha \sim {\rm HalfNormal}(\sigma=p)$                   | `[1.0e-6]`                    |
 | `fwhm_L`                      | Lorentzian FWHM line width              | `km s-1`  | $\Delta V_{L} \sim {\rm HalfNormal}(\sigma=p)$               | `None`                        |
 
@@ -134,7 +134,7 @@ The `absorption_weight` parameter, $w_\tau$, accounts for the difference between
 | Cloud Parameter<br>`variable` | Parameter                                 | Units     | Prior, where<br>($p_0, p_1, \dots$) = `prior_{variable}`                              | Default<br>`prior_{variable}` |
 | :---------------------------- | :---------------------------------------- | :-------- | :------------------------------------------------------------------------------------ | :---------------------------- |
 | `fwhm2`                       | Square FWHM line width                    | `km2 s-2` | $\Delta V^2 \sim p\times{\rm ChiSquared}(\nu=1)$                                      | `200.0`                       |
-| `velocity`                    | Velocity (same reference frame as data)   | `km s-1`  | $V \sim {\rm Normal}(\mu=p_0, \sigma=p_1)$                                            | `[0.0, 10.0]`                 |
+| `velocity`                    | Velocity (same reference frame as data) | `km s-1`  | $V \sim p_0 + (p_1 - p_0) {\rm Beta}(\alpha=2, \beta=2)$                   | `[-10.0, 10.0]`                 |
 | `n_alpha`                     | Ly&alpha; photon density                  | `cm-3`    | $n_\alpha \sim {\rm HalfNormal}(\sigma=p)$                                            | `[1.0e-6]`                    |
 | `nth_fwhm_1pc`                | Non-thermal FWHM line width at 1 pc depth | `km s-1`  | $\Delta V_{\rm nth} \sim {\rm TruncatedNormal}(\mu=p_0, \sigma=p_1, {\rm lower}=0.0)$ | `[1.75, 0.25]`                |
 | `fwhm_L`                      | Lorentzian FWHM line width                | `km s-1`  | $\Delta V_{L} \sim {\rm HalfNormal}(\sigma=p)$                                        | `None`                        |
