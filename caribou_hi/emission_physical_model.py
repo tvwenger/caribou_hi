@@ -35,6 +35,7 @@ class EmissionPhysicalModel(HIPhysicalModel):
 
     def add_priors(
         self,
+        prior_filling_factor: Iterable[float] = [2.0, 1.0],
         prior_ff_NHI: float = 1.0e21,
         prior_fwhm2_thermal_fraction: Iterable[float] = [2.0, 2.0],
         *args,
@@ -44,6 +45,9 @@ class EmissionPhysicalModel(HIPhysicalModel):
 
         Parameters
         ----------
+        prior_filling_factor : Iterable[float], optional
+            Prior distribution on filling factor, by default [2.0, 1.0], where
+            filling_factor ~ Beta(alpha=prior[0], beta=prior[1])
         prior_ff_NHI : float, optional
             Prior distribution on filling factor * column density (cm-2), by default 1.0e21, where
             ff_NHI ~ HalfNormal(sigma=prior)
@@ -82,8 +86,11 @@ class EmissionPhysicalModel(HIPhysicalModel):
             )
 
             # filling factor
-            filling_factor = pm.Uniform(
-                "filling_factor", lower=0.0, upper=1.0, dims="cloud"
+            filling_factor = pm.Beta(
+                "filling_factor",
+                alpha=prior_filling_factor[0],
+                beta=prior_filling_factor[1],
+                dims="cloud",
             )
 
             # Non-thermal FWHM2 (km2 s-2; shape: clouds)
@@ -94,12 +101,12 @@ class EmissionPhysicalModel(HIPhysicalModel):
             )
 
             # Depth (pc; shape: clouds)
-            depth = pm.Deterministic(
-                "depth",
+            log10_depth = pm.Deterministic(
+                "log10_depth",
                 physics.calc_depth_nonthermal(
                     pt.sqrt(fwhm2_nonthermal),
                     self.model["nth_fwhm_1pc"],
-                    self.depth_nth_fwhm_power,
+                    self.model["depth_nth_fwhm_power"],
                 ),
                 dims="cloud",
             )
@@ -114,7 +121,7 @@ class EmissionPhysicalModel(HIPhysicalModel):
             # density (cm-3; shape: clouds)
             log10_nHI = pm.Deterministic(
                 "log10_nHI",
-                physics.calc_log10_density(log10_NHI, pt.log10(depth)),
+                physics.calc_log10_density(log10_NHI, log10_depth),
                 dims="cloud",
             )
 
@@ -124,7 +131,7 @@ class EmissionPhysicalModel(HIPhysicalModel):
                 physics.calc_spin_temp(
                     tkin,
                     10.0**log10_nHI,
-                    self.model["n_alpha"],
+                    10.0 ** self.model["log10_n_alpha"],
                 ),
                 dims="cloud",
             )

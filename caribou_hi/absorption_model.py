@@ -66,7 +66,7 @@ class AbsorptionModel(HIModel):
                 physics.calc_spin_temp(
                     tkin,
                     10.0 ** self.model["log10_nHI"],
-                    self.model["n_alpha"],
+                    10.0 ** self.model["log10_n_alpha"],
                 ),
                 dims="cloud",
             )

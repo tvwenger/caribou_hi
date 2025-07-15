@@ -79,8 +79,8 @@ The models provided by `caribou_hi` are implemented in the [`bayes_spec`](https:
 | :---------------------------- | :-------------------------------------- | :-------- | :----------------------------------------------------------- | :---------------------------- |
 | `fwhm2`                       | Square FWHM line width                  | `km2 s-2` | $\Delta V^2 \sim p\times{\rm ChiSquared}(\nu=1)$             | `200.0`                       |
 | `log10_nHI`                   | log10 HI volume density                 | `cm-3`    | $\log_{10}n_{\rm HI} \sim {\rm Normal}(\mu=p_0, \sigma=p_1)$ | `[0.0, 1.5]`                  |
-| `velocity`                    | Velocity (same reference frame as data) | `km s-1`  | $V \sim p_0 + (p_1 - p_0) {\rm Beta}(\alpha=2, \beta=2)$                   | `[-10.0, 10.0]`                 |
-| `n_alpha`                     | Ly&alpha; photon density                | `cm-3`    | $n_\alpha \sim {\rm HalfNormal}(\sigma=p)$                   | `[1.0e-6]`                    |
+| `velocity`                    | Velocity (same reference frame as data) | `km s-1`  | $V \sim p_0 + (p_1 - p_0) {\rm Beta}(\alpha=2, \beta=2)$     | `[-10.0, 10.0]`               |
+| `log10_n_alpha`               | log10 Ly&alpha; photon density          | `cm-3`    | $\log_{10} n_\alpha \sim {\rm Normal}(\mu=p_0, \sigma=p_1)$  | `[-6.0, 1.0]`                 |
 | `fwhm_L`                      | Lorentzian FWHM line width              | `km s-1`  | $\Delta V_{L} \sim {\rm HalfNormal}(\sigma=p)$               | `None`                        |
 
 ### `AbsorptionModel`
@@ -104,11 +104,11 @@ The `tkin_factor` parameter sets the kinetic temperature in the range from zero 
 
 | Cloud Parameter<br>`variable` | Parameter                                      | Units      | Prior, where<br>($p_0, p_1, \dots$) = `prior_{variable}`    | Default<br>`prior_{variable}` |
 | :---------------------------- | :--------------------------------------------- | :--------- | :---------------------------------------------------------- | :---------------------------- |
-| `filling_factor`              | Filling factor                                 | ``         | $f \sim {\rm Uniform}(T_B/T_S, 1.0)$                        | ``                            |
+| `filling_factor`              | Filling factor                                 | ``         | $f \sim {\rm Beta}(\alpha=p_0, \beta=p_1)$                  | `[2.0, 1.0]`                  |
 | `TB_fwhm`                     | Brightness temperature x FWHM                  | `K km s-1` | $T_B \Delta V \sim {\rm HalfNormal}(\sigma=p)$              | `50.0`                        |
 | `tkin_factor`                 | Kinetic temperature / max. kinetic temperature | ``         | $T_K/T_{K, \rm max} \sim {\rm Beta}(\alpha=p_0, \beta=p_1)$ | `[2.0, 2.0]`                  |
 
-The `filling_factor` parameter accounts for beam dilution in the emission spectrum. The expected brightness temperature contribution from a cloud is multiplied by `filling_factor`, which takes values between $f_{\rm min} = T_B/T_S$ and one.
+The `filling_factor` parameter accounts for beam dilution in the emission spectrum. The expected brightness temperature contribution from a cloud is multiplied by `filling_factor`.
 
 The `tkin_factor` parameter sets the kinetic temperature in the range from $T_B$ to the maximum kinetic temperature allowed by the FWHM.
 
@@ -118,12 +118,12 @@ The `tkin_factor` parameter sets the kinetic temperature in the range from $T_B$
 
 ![emission absorption model graph](docs/source/notebooks/emission_absorption_model.png)
 
-| Cloud Parameter<br>`variable` | Parameter                                               | Units      | Prior, where<br>($p_0, p_1, \dots$) = `prior_{variable}`                  | Default<br>`prior_{variable}`            |
-| :---------------------------- | :------------------------------------------------------ | :--------- | :------------------------------------------------------------------------ | :--------------------------------------- |
-| `filling_factor`              | Filling factor                                          | ``         | $f \sim {\rm Uniform}(T_B/T_S, 1.0)$                                      | ``                                       |
-| `TB_fwhm`                     | Brightness temperature x FWHM                           | `K km s-1` | $T_B \Delta V \sim {\rm HalfNormal}(\sigma=p)$                            | `50.0`                                   |
-| `tkin_factor`                 | Kinetic temperature / max. kinetic temperature          | ``         | $T_K/T_{K, \rm max} \sim {\rm Beta}(\alpha=p_0, \beta=p_1)$               | `[2.0, 2.0]`                             |
-| `wt_ff_tspin`                 | Absorption weight / (filling factor x spin temperature) | `K-1`      | $w_\tau/(f T_s) \sim {\rm LogNormal}(\mu, \sigma_{\log_{10} N_{\rm HI}})$ | $\sigma_{\log_{10} N_{\rm HI}}$ = `None` |
+| Cloud Parameter<br>`variable` | Parameter                                                  | Units      | Prior, where<br>($p_0, p_1, \dots$) = `prior_{variable}`                  | Default<br>`prior_{variable}`            |
+| :---------------------------- | :--------------------------------------------------------- | :--------- | :------------------------------------------------------------------------ | :--------------------------------------- |
+| `filling_factor`              | Filling factor                                             | ``         | $f \sim {\rm Beta}(\alpha=p_0, \beta=p_1)$                                | `[2.0, 1.0]`                             |
+| `TB_fwhm`                     | Brightness temperature x FWHM                              | `K km s-1` | $T_B \Delta V \sim {\rm HalfNormal}(\sigma=p)$                            | `50.0`                                   |
+| `tkin_factor`                 | Kinetic temperature / max. kinetic temperature             | ``         | $T_K/T_{K, \rm max} \sim {\rm Beta}(\alpha=p_0, \beta=p_1)$               | `[2.0, 2.0]`                             |
+| `wt_ff_tkin`                  | Absorption weight / (filling factor x kinetic temperature) | `K-1`      | $w_\tau/(f T_K) \sim {\rm LogNormal}(\mu, \sigma_{\log_{10} N_{\rm HI}})$ | $\sigma_{\log_{10} N_{\rm HI}}$ = `None` |
 
 The `absorption_weight` parameter, $w_\tau$, accounts for the difference between the column density probed in absorption and that probed in emission. Specifically, $N_{\rm HI, em}/N_{\rm HI, abs} = f/w_\tau$. By default, `absorption_weight` is assumed to be one; the column density seen in absorption is identical to that seen in emission. This is the default behavior, and when `prior_sigma_log10_NHI = None`. Otherwise, the absorption column density is drawn from a log-normal distribution with a width given by `prior_sigma_log10_NHI`. Note that the mode of this distribution is less than the mean, so the assumption of a log-normal column density will tend to decrease the column density probed by absorption.
 
@@ -134,8 +134,8 @@ The `absorption_weight` parameter, $w_\tau$, accounts for the difference between
 | Cloud Parameter<br>`variable` | Parameter                                 | Units     | Prior, where<br>($p_0, p_1, \dots$) = `prior_{variable}`                              | Default<br>`prior_{variable}` |
 | :---------------------------- | :---------------------------------------- | :-------- | :------------------------------------------------------------------------------------ | :---------------------------- |
 | `fwhm2`                       | Square FWHM line width                    | `km2 s-2` | $\Delta V^2 \sim p\times{\rm ChiSquared}(\nu=1)$                                      | `200.0`                       |
-| `velocity`                    | Velocity (same reference frame as data) | `km s-1`  | $V \sim p_0 + (p_1 - p_0) {\rm Beta}(\alpha=2, \beta=2)$                   | `[-10.0, 10.0]`                 |
-| `n_alpha`                     | Ly&alpha; photon density                  | `cm-3`    | $n_\alpha \sim {\rm HalfNormal}(\sigma=p)$                                            | `[1.0e-6]`                    |
+| `velocity`                    | Velocity (same reference frame as data)   | `km s-1`  | $V \sim p_0 + (p_1 - p_0) {\rm Beta}(\alpha=2, \beta=2)$                              | `[-10.0, 10.0]`               |
+| `log10_n_alpha`               | log10 Ly&alpha; photon density            | `cm-3`    | $\log_{10} n_\alpha \sim {\rm Normal}(\mu=p_0, \sigma=p_1)$                           | `[-6.0, 1.0]`                 |
 | `nth_fwhm_1pc`                | Non-thermal FWHM line width at 1 pc depth | `km s-1`  | $\Delta V_{\rm nth} \sim {\rm TruncatedNormal}(\mu=p_0, \sigma=p_1, {\rm lower}=0.0)$ | `[1.75, 0.25]`                |
 | `fwhm_L`                      | Lorentzian FWHM line width                | `km s-1`  | $\Delta V_{L} \sim {\rm HalfNormal}(\sigma=p)$                                        | `None`                        |
 
@@ -158,7 +158,7 @@ The `absorption_weight` parameter, $w_\tau$, accounts for the difference between
 
 | Cloud Parameter<br>`variable` | Parameter                       | Units  | Prior, where<br>($p_0, p_1, \dots$) = `prior_{variable}`                | Default<br>`prior_{variable}` |
 | :---------------------------- | :------------------------------ | :----- | :---------------------------------------------------------------------- | :---------------------------- |
-| `filling_factor`              | Filling factor                  | ``     | $f \sim {\rm Uniform}(0.0, 1.0)$                                        | ``                            |
+| `filling_factor`              | Filling factor                  | ``     | $f \sim {\rm Beta}(\alpha=p_0, \beta=p_1)$                              | `[2.0, 1.0]`                  |
 | `ff_NHI`                      | Filling factor x column density | `cm-2` | $f N_{\rm HI} \sim {\rm HalfNormal}(\sigma=p)$                          | `1.0e21`                      |
 | `fwhm2_thermal_fraction`      | Thermal FWHM^2 / total FWHM^2   | ``     | $\Delta V_{\rm th}^2/\Delta V^2 \sim {\rm Beta}(\alpha=p_0, \beta=p_1)$ | `[2.0, 2.0]`                  |
 
@@ -170,12 +170,12 @@ The `fwhm2_thermal_fraction` parameter sets the thermal line width between zero 
 
 ![emission absorption physical model graph](docs/source/notebooks/emission_absorption_physical_model.png)
 
-| Cloud Parameter<br>`variable` | Parameter                                               | Units  | Prior, where<br>($p_0, p_1, \dots$) = `prior_{variable}`                  | Default<br>`prior_{variable}`           |
-| :---------------------------- | :------------------------------------------------------ | :----- | :------------------------------------------------------------------------ | :-------------------------------------- |
-| `filling_factor`              | Filling factor                                          | ``     | $f \sim {\rm Uniform}(0.0, 1.0)$                                          | ``                                      |
-| `ff_NHI`                      | Filling factor x column density                         | `cm-2` | $f N_{\rm HI} \sim {\rm HalfNormal}(\sigma=p)$                            | `1.0e21`                                |
-| `fwhm2_thermal_fraction`      | Thermal FWHM^2 / total FWHM^2                           | ``     | $\Delta V_{\rm th}^2/\Delta V^2 \sim {\rm Beta}(\alpha=p_0, \beta=p_1)$   | `[2.0, 2.0]`                            |
-| `wt_ff_tkin`                  | Absorption weight / (filling factor x spin temperature) | `K-1`  | $w_\tau/(f T_s) \sim {\rm LogNormal}(\mu, \sigma_{\log_{10} N_{\rm HI}})$ | $\sigma_{\log_{10} N_{\rm HI}}$ = `0.5` |
+| Cloud Parameter<br>`variable` | Parameter                                                  | Units  | Prior, where<br>($p_0, p_1, \dots$) = `prior_{variable}`                  | Default<br>`prior_{variable}`           |
+| :---------------------------- | :--------------------------------------------------------- | :----- | :------------------------------------------------------------------------ | :-------------------------------------- |
+| `filling_factor`              | Filling factor                                             | ``     | $f \sim {\rm Beta}(\alpha=p_0, \beta=p_1)$                                | `[2.0, 1.0]`                            |
+| `ff_NHI`                      | Filling factor x column density                            | `cm-2` | $f N_{\rm HI} \sim {\rm HalfNormal}(\sigma=p)$                            | `1.0e21`                                |
+| `fwhm2_thermal_fraction`      | Thermal FWHM^2 / total FWHM^2                              | ``     | $\Delta V_{\rm th}^2/\Delta V^2 \sim {\rm Beta}(\alpha=p_0, \beta=p_1)$   | `[2.0, 2.0]`                            |
+| `wt_ff_tkin`                  | Absorption weight / (filling factor x kinetic temperature) | `K-1`  | $w_\tau/(f T_K) \sim {\rm LogNormal}(\mu, \sigma_{\log_{10} N_{\rm HI}})$ | $\sigma_{\log_{10} N_{\rm HI}}$ = `0.5` |
 
 The `absorption_weight` parameter accounts for the difference between the column density probed in absorption and that probed in emission. Specifically, $N_{\rm HI, em}/N_{\rm HI, abs} = f/w_\tau$. The absorption column density is drawn from a log-normal distribution with a width given by `prior_sigma_log10_NHI`.
 
