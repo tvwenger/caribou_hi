@@ -37,6 +37,7 @@ class EmissionAbsorptionModel(HIModel):
 
     def add_priors(
         self,
+        prior_filling_factor: Iterable[float] = [2.0, 1.0],
         prior_TB_fwhm: float = 50.0,
         prior_tkin_factor: Iterable[float] = [2.0, 2.0],
         prior_sigma_log10_NHI: Optional[float] = None,
@@ -47,6 +48,9 @@ class EmissionAbsorptionModel(HIModel):
 
         Parameters
         ----------
+        prior_filling_factor : Iterable[float], optional
+            Prior distribution on filling factor, by default [2.0, 1.0], where
+            filling_factor ~ Beta(alpha=prior[0], beta=prior[1])
         prior_TB_fwhm : float, optional
             Prior distribution on brightness temperature x FWHM (K km s), by default 50.0, where
             TB_fwhm ~ HalfNormal(sigma=prior)
@@ -103,31 +107,21 @@ class EmissionAbsorptionModel(HIModel):
                 physics.calc_spin_temp(
                     tkin,
                     10.0 ** self.model["log10_nHI"],
-                    self.model["n_alpha"],
+                    10.0 ** self.model["log10_n_alpha"],
                 ),
                 dims="cloud",
             )
 
-            # Minimum filling factor == TB / Tspin
-            filling_factor_min = tkin_min / tspin
-
             # filling factor
-            filling_factor_norm = pm.Uniform(
-                "filling_factor_norm", lower=0.0, upper=1.0, dims="cloud"
-            )
-            filling_factor = pm.Deterministic(
+            filling_factor = pm.Beta(
                 "filling_factor",
-                pt.switch(
-                    pt.gt(filling_factor_min, 1.0),
-                    1.0,
-                    filling_factor_norm * (1.0 - filling_factor_min)
-                    + filling_factor_min,
-                ),
+                alpha=prior_filling_factor[0],
+                beta=prior_filling_factor[1],
                 dims="cloud",
             )
 
             # (1 - exp(-tau_peak))
-            exp_tau_peak = filling_factor_min / filling_factor
+            exp_tau_peak = tkin_min / tspin / filling_factor
             exp_tau_peak = pt.clip(exp_tau_peak, 0.0, 0.9999)
             tau_peak = -pt.log(1.0 - exp_tau_peak)
 
@@ -142,16 +136,16 @@ class EmissionAbsorptionModel(HIModel):
             if prior_sigma_log10_NHI is None:
                 _ = pm.Data("absorption_weight", np.ones(self.n_clouds), dims="cloud")
             else:
-                # Absorption weight / filling factor / tspin (K-1; shape: clouds)
+                # Absorption weight / filling factor / tkin (K-1; shape: clouds)
                 # Mean assuming underlying column density distribution is log-normal
                 mu = -0.5 * (np.log(10.0) * prior_sigma_log10_NHI) ** 2.0
-                wt_ff_tspin = pm.LogNormal(
-                    "wt_ff_tspin",
-                    mu=mu - pt.log(tspin),
+                wt_ff_tkin = pm.LogNormal(
+                    "wt_ff_tkin",
+                    mu=mu - pt.log(tkin),
                     sigma=np.log(10.0) * prior_sigma_log10_NHI,
                     dims="cloud",
                 )
-                wt_ff = wt_ff_tspin * tspin
+                wt_ff = wt_ff_tkin * tkin
 
                 # Absorption weight (shape: clouds)
                 _ = pm.Deterministic(

@@ -77,12 +77,14 @@ class AbsorptionPhysicalModel(HIPhysicalModel):
             )
 
             # Depth (pc; shape: clouds)
-            depth = pm.Deterministic(
-                "depth",
-                physics.calc_depth_nonthermal(
-                    pt.sqrt(fwhm2_nonthermal),
-                    self.model["nth_fwhm_1pc"],
-                    self.depth_nth_fwhm_power,
+            log10_depth = pm.Deterministic(
+                "log10_depth",
+                pt.log10(
+                    physics.calc_depth_nonthermal(
+                        pt.sqrt(fwhm2_nonthermal),
+                        self.model["nth_fwhm_1pc"],
+                        self.model["depth_nth_fwhm_power"],
+                    )
                 ),
                 dims="cloud",
             )
@@ -97,7 +99,7 @@ class AbsorptionPhysicalModel(HIPhysicalModel):
             # density (cm-3; shape: clouds)
             log10_nHI = pm.Deterministic(
                 "log10_nHI",
-                physics.calc_log10_density(log10_NHI, pt.log10(depth)),
+                physics.calc_log10_density(log10_NHI, log10_depth),
                 dims="cloud",
             )
 
@@ -107,7 +109,7 @@ class AbsorptionPhysicalModel(HIPhysicalModel):
                 physics.calc_spin_temp(
                     tkin,
                     10.0**log10_nHI,
-                    self.model["n_alpha"],
+                    10.0 ** self.model["log10_n_alpha"],
                 ),
                 dims="cloud",
             )

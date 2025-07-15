@@ -21,19 +21,10 @@ from caribou_hi import physics
 class HIPhysicalModel(BaseModel):
     """Definition of the HIPhysicalModel model. This model is further extended by other models."""
 
-    def __init__(self, *args, depth_nth_fwhm_power: float = 1 / 3, **kwargs):
-        """Initialize a new HIPhysicalModel instance
-
-        Parameters
-        ----------
-        depth_nth_fwhm_power : float, optional
-            Assumed nonthermal FWHM vs. depth power law index, by default 1/3
-        """
+    def __init__(self, *args, **kwargs):
+        """Initialize a new HIPhysicalModel instance"""
         # Initialize BaseModel
         super().__init__(*args, **kwargs)
-
-        # Save inputs
-        self.depth_nth_fwhm_power = depth_nth_fwhm_power
 
         # Select features used for posterior clustering
         self._cluster_features += [
@@ -46,18 +37,19 @@ class HIPhysicalModel(BaseModel):
             {
                 "fwhm2": r"$\Delta V^2$ (km$^{2}$ s$^{-2}$)",
                 "velocity": r"$V_{\rm LSR}$ (km s$^{-1}$)",
-                "n_alpha": r"$n_\alpha$ (cm$^{-3}$)",
+                "log10_n_alpha": r"$\log_{10} n_\alpha$ (cm$^{-3}$)",
                 "nth_fwhm_1pc": r"$\Delta V_{\rm nth, 1 pc}$ (km s$^{-1}$)",
+                "depth_nth_fwhm_power": r"$\alpha$",
                 "fwhm_L": r"$\Delta V_L$ (km s$^{-1}$)",
                 "fwhm2_thermal_fraction": r"$\Delta V_{\rm th}^2/\Delta V^2$",
                 "fwhm2_thermal": r"$\Delta V_{\rm th}^2$ (km$^{2}$ s$^{-2}$)",
                 "tkin": r"$T_K$ (K)",
                 "filling_factor": r"$f$",
                 "log10_NHI": r"log$_{10}$ $N_{\rm HI}$ (cm$^{-2}$)",
-                "wt_ff_fwhm2_thermal": r"$w_\tau/(f \Delta V_{\rm th}^2)$ (km$^{-2}$ s$^{2}$)",
+                "wt_ff_tkin": r"$w_\tau /(f T_K)$ (K$^{-1}$)",
                 "absorption_weight": r"$w_\tau$",
                 "fwhm2_nonthermal": r"$\Delta V_{\rm nth}^2$ (km$^{2}$ s$^{-2}$)",
-                "depth": r"$d$ (pc)",
+                "log10_depth": r"$\log_{10} d$ (pc)",
                 "log10_nHI": r"log$_{10}$ $n_{\rm HI}$ (cm$^{-3}$)",
                 "tspin": r"$T_S$ (K)",
                 "tau_total": r"$\int \tau(v) dv$ (km s$^{-1}$)",
@@ -71,8 +63,9 @@ class HIPhysicalModel(BaseModel):
         self,
         prior_fwhm2: float = 200.0,
         prior_velocity: Iterable[float] = [-10.0, 10.0],
-        prior_n_alpha: float = 1.0e-6,
+        prior_log10_n_alpha: Iterable[float] = [-6.0, 1.0],
         prior_nth_fwhm_1pc: Iterable[float] = [1.75, 0.25],
+        prior_depth_nth_fwhm_power: Iterable[float] = [0.3, 0.1],
         prior_fwhm_L: Optional[float] = None,
         prior_baseline_coeffs: Optional[dict[str, Iterable[float]]] = None,
     ):
@@ -88,12 +81,15 @@ class HIPhysicalModel(BaseModel):
             Prior distribution on centroid velocity (km s-1), by default [-10.0, 10.0], where
             velocity_norm ~ Beta(alpha=2.0, beta=2.0)
             velocity ~ prior[0] + (prior[1] - prior[0]) * velocity_norm
-        prior_n_alpha : Iterable[float], optional
-            Prior distribution on n_alpha (cm-3), by default 1.0e-6, where
-            n_alpha ~ HalfNormal(sigma=prior)
+        prior_log10_n_alpha : Iterable[float], optional
+            Prior distribution on log10 Lyman alpha photon density (cm-3), by default [-6.0, 1.0], where
+            log10_n_alpha ~ Normal(mu=prior[0], sigma=prior[1])
         prior_nth_fwhm_1pc : float, optional
             Prior distribution on non-thermal line width at 1 pc (km/s), by default [1.75, 0.25], where
             nth_fwhm_1pc ~ TruncatedNormal(mu=prior[0], sigma=prior[1], lower=0.0)
+        prior_depth_nth_fwhm_power : float, optional
+            Prior distribution on non-thermal line width vs. depth power law index, by default [0.3, 0.1], where
+            depth_nth_fwhm_power ~ InverseGamma(mu=prior[0], sigma=prior[1])
         prior_fwhm_L : Optional[float], optional
             Prior distribution on the pseudo-Voight Lorentzian profile line width (km/s),
             by default None, where
@@ -122,8 +118,14 @@ class HIPhysicalModel(BaseModel):
             )
 
             # Lyman-alpha photon density (cm-3)
-            n_alpha_norm = pm.HalfNormal("n_alpha_norm", sigma=1.0, dims="cloud")
-            _ = pm.Deterministic("n_alpha", prior_n_alpha * n_alpha_norm, dims="cloud")
+            log10_n_alpha_norm = pm.Normal(
+                "log10_n_alpha_norm", mu=0.0, sigma=1.0, dims="cloud"
+            )
+            _ = pm.Deterministic(
+                "log10_n_alpha",
+                prior_log10_n_alpha[0] + prior_log10_n_alpha[1] * log10_n_alpha_norm,
+                dims="cloud",
+            )
 
             # Non-thermal FWHM at 1 pc (km s-1; shape: clouds)
             _ = pm.TruncatedNormal(
@@ -131,6 +133,14 @@ class HIPhysicalModel(BaseModel):
                 mu=prior_nth_fwhm_1pc[0],
                 sigma=prior_nth_fwhm_1pc[1],
                 lower=0.0,
+                dims="cloud",
+            )
+
+            # Depth vs. non-thermal FWHM power (shape: clouds)
+            _ = pm.InverseGamma(
+                "depth_nth_fwhm_power",
+                mu=prior_depth_nth_fwhm_power[0],
+                sigma=prior_depth_nth_fwhm_power[1],
                 dims="cloud",
             )
 
